@@ -25,9 +25,16 @@ The data classes are kept in `lib/models.dart` and the sample data is in `lib/mo
 
 The widget tests cover the welcome screen and successful demo login. Run `flutter test` before each handoff. Run `flutter analyze` to catch lint and compatibility issues.
 
+## Backend connection
+
+Start the Spring Boot API from the repository's `backend` folder. The medicine
+finder calls `http://localhost:8080/api/medicines`. If the API is offline, it
+uses the local sample catalogue instead. The HTTP client is in
+`lib/api_service.dart`.
+
 ## Next integration work
 
-1. Connect the Flutter screens to the Spring Boot API.
+1. Connect the remaining Flutter screens to the Spring Boot API.
 2. Add login and user roles.
 3. Connect the catalogue, stock, orders and prescriptions to MySQL.
 4. Add payment and file storage using services that meet the project requirements.

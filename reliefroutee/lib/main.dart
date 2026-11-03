@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'api_service.dart';
 
 const teal = Color(0xFF8B5CF6);
 const darkTeal = Color(0xFF4C1D95);
@@ -795,13 +796,43 @@ class SmartAssistantScreen extends StatefulWidget {
 
 class _SmartAssistantState extends State<SmartAssistantScreen> {
   final search = TextEditingController();
+  final api = const ApiService();
   String category = 'All';
-  final catalogue = const [
+  bool loading = true;
+  bool connected = false;
+  final catalogue = <_FinderItem>[
     _FinderItem('Allergy Relief', 'Allergy', false),
     _FinderItem('Paracetamol 500mg', 'Pain relief', false),
     _FinderItem('Cough Calm Syrup', 'Cold & flu', false),
     _FinderItem('Amoxicillin 500mg', 'Prescription', true),
   ];
+
+  @override
+  void initState() {
+    super.initState();
+    _loadCatalogue();
+  }
+
+  Future<void> _loadCatalogue() async {
+    try {
+      final remote = await api.getMedicines();
+      if (!mounted || remote.isEmpty) return;
+      setState(() {
+        catalogue.clear();
+        for (final item in remote) {
+          catalogue.add(_FinderItem(
+            item['name'] as String? ?? 'Medicine',
+            item['category'] as String? ?? 'Other',
+            item['prescriptionRequired'] as bool? ?? false,
+          ));
+        }
+        connected = true;
+        loading = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => loading = false);
+    }
+  }
 
   @override
   void dispose() {
@@ -825,6 +856,18 @@ class _SmartAssistantState extends State<SmartAssistantScreen> {
         children: [
           const DemoNote(
             'Search results come from the local catalogue. This is a demonstration and not medical advice.',
+          ),
+          const SizedBox(height: 8),
+          Text(
+            loading
+                ? 'Connecting to the backend...'
+                : connected
+                    ? 'Connected to the Spring Boot catalogue.'
+                    : 'Backend unavailable. Showing sample catalogue.',
+            style: TextStyle(
+              color: connected ? Colors.green.shade700 : Colors.black54,
+              fontSize: 12,
+            ),
           ),
           const SizedBox(height: 18),
           TextField(
