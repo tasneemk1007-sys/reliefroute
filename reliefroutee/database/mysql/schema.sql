@@ -107,3 +107,12 @@ VALUES
   ('m4', 'Vitamin C 1000mg', 'Daily immune support supplement', 'Vitamins', 119.90, 60, FALSE),
   ('m5', 'Cough Calm Syrup', 'Soothing cough syrup', 'Cold & flu', 74.95, 40, FALSE)
 ON DUPLICATE KEY UPDATE name = VALUES(name), price = VALUES(price);
+
+INSERT INTO users (firebase_uid, email, full_name, role)
+VALUES ('demo-user', 'demo@reliefroute.local', 'Demo Patient', 'customer')
+ON DUPLICATE KEY UPDATE full_name = VALUES(full_name);
+
+INSERT INTO addresses (user_id, label, address_line1, city, province, postal_code, is_default)
+SELECT id, 'Home', '1 Demo Street', 'Johannesburg', 'Gauteng', '2000', TRUE
+FROM users WHERE firebase_uid = 'demo-user'
+  AND NOT EXISTS (SELECT 1 FROM addresses a WHERE a.user_id = users.id);

@@ -8,7 +8,7 @@ services:
       MYSQL_PASSWORD: reliefroute_dev
       MYSQL_ROOT_PASSWORD: change_me_root
     ports: ["3306:3306"]
-    volumes: ["mysql_data:/var/lib/mysql", "../reliefroute/database/mysql/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro"]
+    volumes: ["mysql_data:/var/lib/mysql", "../reliefroutee/database/mysql/schema.sql:/docker-entrypoint-initdb.d/001-schema.sql:ro"]
     healthcheck:
       test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
       interval: 5s
