@@ -19,12 +19,12 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> health() async {
-    final response = await http.get(Uri.parse('$baseUrl/health'));
+    final response = await http.get(Uri.parse('$baseUrl/firebase-check'));
     if (response.statusCode != 200) throw Exception('Backend is unavailable');
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 
-  Future<List<dynamic>> getReminders() => _getList('/reminders');
+  Future<List<dynamic>> getReminders() => _getList('/refill_reminders');
   Future<List<dynamic>> getOrders() => _getList('/orders');
   Future<List<dynamic>> getPrescriptions() => _getList('/prescriptions');
 
@@ -40,7 +40,7 @@ class ApiService {
     required String frequency,
   }) async {
     final response = await http.post(
-      Uri.parse('$baseUrl/reminders'),
+      Uri.parse('$baseUrl/refill_reminders'),
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'medicine': medicine, 'time': time, 'frequency': frequency}),
     );
