@@ -18,7 +18,7 @@ public class SecurityConfig {
   @Bean SecurityFilterChain security(HttpSecurity http) throws Exception {
     return http.csrf(c -> c.disable()).cors(c -> {}).sessionManagement(s -> s.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
       .authorizeHttpRequests(a -> { a.requestMatchers("/actuator/health", "/api/health", "/error").permitAll();
-        a.requestMatchers(HttpMethod.GET, "/api/medicines/**").permitAll();
+        a.requestMatchers(HttpMethod.GET, "/api/medications/**").permitAll();
         if (authRequired) a.anyRequest().authenticated(); else a.anyRequest().permitAll(); }).build();
   }
   @Bean CorsConfigurationSource cors() {

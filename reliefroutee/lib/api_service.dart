@@ -7,7 +7,7 @@ class ApiService {
   final String baseUrl;
 
   Future<List<Map<String, dynamic>>> getMedicines({String query = ''}) async {
-    final uri = Uri.parse('$baseUrl/medicines').replace(
+    final uri = Uri.parse('$baseUrl/medications').replace(
       queryParameters: query.trim().isEmpty ? null : {'q': query.trim()},
     );
     final response = await http.get(uri).timeout(const Duration(seconds: 5));
