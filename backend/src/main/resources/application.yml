@@ -1,0 +1,15 @@
+spring:
+  application.name: reliefroute-api
+  datasource:
+    url: ${DB_URL:jdbc:mysql://localhost:3306/reliefroute?createDatabaseIfNotExist=true&serverTimezone=Africa/Johannesburg}
+    username: ${DB_USERNAME:reliefroute}
+    password: ${DB_PASSWORD:reliefroute_dev}
+  jpa:
+    hibernate.ddl-auto: validate
+    open-in-view: false
+    properties.hibernate.jdbc.time_zone: UTC
+management.endpoints.web.exposure.include: health,info
+server.port: ${PORT:8080}
+reliefroute.firebase.enabled: ${FIREBASE_ENABLED:false}
+reliefroute.auth.required: ${AUTH_REQUIRED:false}
+reliefroute.cors.allowed-origins: ${CORS_ALLOWED_ORIGINS:http://localhost:5000,http://localhost:3000}
