@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'api_service.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 const teal = Color(0xFF087F8C);
 const darkTeal = Color(0xFF123047);
@@ -512,6 +513,12 @@ class Dashboard extends StatelessWidget {
         ),
         const SizedBox(height: 10),
         _ServiceTile(
+          'Find a pharmacy',
+          'Open nearby pharmacies and contact details',
+          Icons.local_pharmacy_outlined,
+          const PharmacyDirectoryScreen(),
+        ),
+        _ServiceTile(
           'Medicine catalogue',
           'Browse products, categories and prices in ZAR',
           Icons.medication_outlined,
@@ -851,9 +858,12 @@ class DoctorDirectoryScreen extends StatelessWidget {
               ),
               isThreeLine: true,
               trailing: FilledButton(
-                onPressed: () =>
-                    showMessage(context, 'Appointment request submitted.'),
-                child: const Text('Request'),
+                onPressed: () => openExternalLink(
+                  context,
+                  'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(doctor)}',
+                  'Opening provider location',
+                ),
+                child: const Text('Map'),
               ),
             ),
           ),
@@ -861,6 +871,51 @@ class DoctorDirectoryScreen extends StatelessWidget {
       ],
     ),
   );
+}
+
+class PharmacyDirectoryScreen extends StatelessWidget {
+  const PharmacyDirectoryScreen({super.key});
+  static const pharmacies = [
+    'ReliefRoute Central Pharmacy • Johannesburg',
+    'Rosebank Community Pharmacy • Johannesburg',
+    'Cape Town Care Pharmacy • Cape Town',
+  ];
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Find a pharmacy')),
+    body: ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const PageTitle('Nearby pharmacies', 'Choose a pharmacy to view it on a map.'),
+        ...pharmacies.map((pharmacy) => Card(
+          child: ListTile(
+            leading: const CircleAvatar(child: Icon(Icons.local_pharmacy_outlined, color: teal)),
+            title: Text(pharmacy.split(' • ').first),
+            subtitle: Text(pharmacy.split(' • ').last),
+            trailing: IconButton(
+              tooltip: 'Open map',
+              icon: const Icon(Icons.open_in_new),
+              onPressed: () => openExternalLink(
+                context,
+                'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(pharmacy)}',
+                'Opening pharmacy location',
+              ),
+            ),
+          ),
+        )),
+      ],
+    ),
+  );
+}
+
+Future<void> openExternalLink(BuildContext context, String value, String message) async {
+  final uri = Uri.parse(value);
+  if (await canLaunchUrl(uri)) {
+    await launchUrl(uri, mode: LaunchMode.externalApplication);
+  } else if (context.mounted) {
+    showMessage(context, 'The link could not be opened.');
+  }
 }
 
 class PageTitle extends StatelessWidget {
