@@ -1,0 +1,26 @@
+{
+  "allowedSymptoms": [
+    "headache", "fever", "body aches", "pain", "cold", "flu", "blocked nose", "runny nose",
+    "sore throat", "allergy", "hay fever", "itching", "sneezing", "hives", "stomach cramps",
+    "heartburn", "diarrhoea", "tiredness", "vitamin deficiency", "bacterial infection"
+  ],
+  "rules": [
+    { "match": "allergex",    "category": "Allergy",      "symptoms": ["allergy", "hay fever", "itching", "sneezing", "runny nose", "hives"] },
+    { "match": "clarityn",    "category": "Allergy",      "symptoms": ["allergy", "hay fever", "itching", "sneezing", "runny nose", "hives"] },
+    { "match": "buscopan",    "category": "Stomach",      "symptoms": ["stomach cramps"] },
+    { "match": "corenza",     "category": "Cold & Flu",   "symptoms": ["cold", "flu", "blocked nose", "runny nose", "sore throat", "fever", "headache", "body aches"] },
+    { "match": "centrum",     "category": "Vitamins",     "symptoms": ["vitamin deficiency", "tiredness"] },
+    { "match": "panado",      "category": "Pain & Fever", "symptoms": ["headache", "fever", "pain", "body aches"] },
+    { "match": "paracetamol", "category": "Pain & Fever", "symptoms": ["headache", "fever", "pain", "body aches"] },
+    { "match": "ibuprofen",   "category": "Pain & Fever", "symptoms": ["headache", "fever", "pain", "body aches"] },
+    { "match": "nurofen",     "category": "Pain & Fever", "symptoms": ["headache", "fever", "pain", "body aches"] },
+    { "match": "gaviscon",    "category": "Heartburn",    "symptoms": ["heartburn"] },
+    { "match": "rennie",      "category": "Heartburn",    "symptoms": ["heartburn"] },
+    { "match": "strepsils",   "category": "Throat",       "symptoms": ["sore throat"] },
+    { "match": "imodium",     "category": "Stomach",      "symptoms": ["diarrhoea"] },
+    { "match": "amoxil",      "category": "Antibiotic",   "symptoms": ["bacterial infection"], "prescription_required": true },
+    { "match": "augmentin",   "category": "Antibiotic",   "symptoms": ["bacterial infection"], "prescription_required": true },
+    { "match": "cefalexin",   "category": "Antibiotic",   "symptoms": ["bacterial infection"], "prescription_required": true },
+    { "match": "ciprobay",    "category": "Antibiotic",   "symptoms": ["bacterial infection"], "prescription_required": true }
+  ]
+}

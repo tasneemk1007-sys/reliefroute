@@ -1,7 +1,10 @@
+// Storage rules: block all direct access. The backend uses the admin key, which ignores these rules.
+// DON'T publish this until you've confirmed the frontend never calls Firebase directly.
 rules_version = '2';
 service firebase.storage {
   match /b/{bucket}/o {
-    // The Spring Boot backend uses the Admin SDK for storage access.
-    match /{allPaths=**} { allow read, write: if false; }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
   }
 }

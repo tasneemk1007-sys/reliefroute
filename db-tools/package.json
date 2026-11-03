@@ -1,1 +1,8 @@
-{"private":true,"scripts":{"tag-symptoms":"node tag-symptoms.js"},"dependencies":{"firebase-admin":"^13.0.0"}}
+{
+  "name": "reliefroute-db-tools",
+  "version": "1.0.0",
+  "private": true,
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}
