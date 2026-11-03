@@ -19,7 +19,14 @@ public class FirestoreController {
   @GetMapping("/{collection}")
   public List<Map<String, Object>> list(@PathVariable String collection) throws Exception {
     check(collection); var snapshots = firestore.collection(collection).get().get().getDocuments();
-    return snapshots.stream().map(s -> withId(s.getId(), s.getData())).toList();
+    return snapshots.stream().map(s -> {
+      var item = withId(s.getId(), s.getData());
+      if (collection.equals("medications")) {
+        var file = String.valueOf(item.getOrDefault("imagePath", "Medicines pic/" + item.get("id") + ".png"));
+        item.put("imageUrl", "/api/storage/file?path=" + java.net.URLEncoder.encode(file, java.nio.charset.StandardCharsets.UTF_8));
+      }
+      return item;
+    }).toList();
   }
 
   @PostMapping("/{collection}") @ResponseStatus(HttpStatus.CREATED)
