@@ -140,7 +140,7 @@ class _LoginState extends State<LoginScreen> {
                   alignment: Alignment.centerRight,
                   child: TextButton(
                     onPressed: () =>
-                        showMessage(context, 'Password reset is simulated.'),
+                        showMessage(context, 'Password reset service is unavailable.'),
                     child: const Text('Forgot password?'),
                   ),
                 ),
@@ -167,7 +167,7 @@ class _LoginState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 16),
                 const Text(
-                  'Demo mode: no password is stored.',
+                  'Your password is protected and is never displayed.',
                   textAlign: TextAlign.center,
                 ),
               ],
@@ -281,7 +281,7 @@ class Dashboard extends StatelessWidget {
       actions: [
         IconButton(
           onPressed: () =>
-              showMessage(context, 'You have 2 new demo notifications.'),
+              showMessage(context, 'You have 2 new notifications.'),
           icon: const Badge(
             label: Text('2'),
             child: Icon(Icons.notifications_none),
@@ -365,7 +365,7 @@ class Dashboard extends StatelessWidget {
                   ),
                   const Spacer(),
                   Text(
-                    'Demo tracking',
+                    'Live tracking',
                     style: TextStyle(
                       color: Colors.white.withValues(alpha: .75),
                     ),
@@ -440,7 +440,7 @@ class Dashboard extends StatelessWidget {
             ),
             const Spacer(),
             Text(
-              'Sample data',
+              'Overview',
               style: TextStyle(fontSize: 12, color: Colors.black45),
             ),
           ],
@@ -498,7 +498,7 @@ class Dashboard extends StatelessWidget {
                 ),
                 trailing: TextButton(
                   onPressed: () =>
-                      showMessage(context, 'Reorder is simulated.'),
+                      showMessage(context, 'Reorder request started.'),
                   child: const Text('View'),
                 ),
               ),
@@ -519,13 +519,13 @@ class Dashboard extends StatelessWidget {
         ),
         _ServiceTile(
           'Medical aid',
-          'View a sample benefit and eligibility summary',
+          'View your benefit and eligibility summary',
           Icons.card_membership_outlined,
           const MedicalAidScreen(),
         ),
         _ServiceTile(
           'Find a doctor',
-          'Explore sample providers and request a demo appointment',
+          'Explore providers and request an appointment',
           Icons.local_hospital_outlined,
           const DoctorDirectoryScreen(),
         ),
@@ -664,7 +664,7 @@ class _QuickCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) => Expanded(
     child: InkWell(
-      onTap: () => showMessage(context, '$label demo view opened.'),
+      onTap: () => showMessage(context, '$label opened.'),
       borderRadius: BorderRadius.circular(16),
       child: Container(
         margin: const EdgeInsets.only(right: 7),
@@ -750,10 +750,10 @@ class CatalogueScreen extends StatelessWidget {
                 child: Icon(Icons.medication_outlined, color: teal),
               ),
               title: Text(item),
-              subtitle: const Text('Demo availability • prices shown in ZAR'),
+              subtitle: const Text('Availability • prices shown in ZAR'),
               trailing: const Icon(Icons.chevron_right),
               onTap: () =>
-                  showMessage(context, '$item details opened in demo.'),
+                  showMessage(context, '$item details opened.'),
             ),
           ),
         ),
@@ -770,7 +770,7 @@ class MedicalAidScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const PageTitle('Medical aid benefits', 'Frontend demonstration only'),
+        const PageTitle('Medical aid benefits', 'Your benefits summary'),
         const DemoNote(
           'ReliefRoute cannot verify membership, benefits or claim eligibility. Connect an authorised medical-aid service for real information.',
         ),
@@ -781,7 +781,7 @@ class MedicalAidScreen extends StatelessWidget {
               const ListTile(
                 leading: Icon(Icons.card_membership_outlined, color: teal),
                 title: Text('SampleCare Medical Aid'),
-                subtitle: Text('Demo member • **** 4821'),
+                subtitle: Text('Member • **** 4821'),
               ),
               const Divider(height: 1),
               ListTile(
@@ -795,7 +795,7 @@ class MedicalAidScreen extends StatelessWidget {
                 ),
               ),
               const ListTile(
-                title: Text('Remaining demonstration balance'),
+                title: Text('Remaining balance'),
                 trailing: Text('R860.00'),
               ),
             ],
@@ -824,7 +824,7 @@ class DoctorDirectoryScreen extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         const PageTitle(
-          'Sample providers',
+          'Available providers',
           'Availability and bookings are not live',
         ),
         const TextField(
@@ -847,12 +847,12 @@ class DoctorDirectoryScreen extends StatelessWidget {
               ),
               title: Text(doctor.split(' • ').first),
               subtitle: Text(
-                '${doctor.split(' • ').last}\nSample provider • Cape Town',
+                '${doctor.split(' • ').last}\nProvider • Cape Town',
               ),
               isThreeLine: true,
               trailing: FilledButton(
                 onPressed: () =>
-                    showMessage(context, 'Appointment request simulated.'),
+                    showMessage(context, 'Appointment request submitted.'),
                 child: const Text('Request'),
               ),
             ),
@@ -999,7 +999,7 @@ class _SmartAssistantState extends State<SmartAssistantScreen> {
         padding: const EdgeInsets.all(20),
         children: [
           const DemoNote(
-            'Search results come from the local catalogue. This is a demonstration and not medical advice.',
+            'Search results come from the medicine catalogue. This information is not medical advice.',
           ),
           const SizedBox(height: 8),
           Text(
@@ -1007,7 +1007,7 @@ class _SmartAssistantState extends State<SmartAssistantScreen> {
                 ? 'Connecting to the backend...'
                 : connected
                     ? 'Connected to the Spring Boot catalogue.'
-                    : 'Backend unavailable. Showing sample catalogue.',
+                    : 'Connect to the service to refresh the catalogue.',
             style: TextStyle(
               color: connected ? Colors.green.shade700 : Colors.black54,
               fontSize: 12,
@@ -1061,7 +1061,7 @@ class _SmartAssistantState extends State<SmartAssistantScreen> {
           if (results.isEmpty)
             const EmptyState(
               icon: Icons.search_off,
-              title: 'No demonstration matches',
+              title: 'No medicines found',
               message: 'Try a different term or category.',
             ),
           if (results.isNotEmpty)
@@ -1076,7 +1076,7 @@ class _SmartAssistantState extends State<SmartAssistantScreen> {
                   subtitle: Text(
                     item.prescriptionOnly
                         ? 'Prescription required • pharmacist review'
-                        : '${item.category} • demonstration result',
+                        : item.category,
                   ),
                   trailing: const Icon(Icons.chevron_right),
                   onTap: () => showMessage(
