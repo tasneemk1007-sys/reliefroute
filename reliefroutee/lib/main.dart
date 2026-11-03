@@ -526,6 +526,105 @@ class Dashboard extends StatelessWidget {
         ),
       ],
     ),
+    bottomNavigationBar: NavigationBar(
+      selectedIndex: 0,
+      onDestinationSelected: (index) {
+        if (index == 1) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogueScreen()));
+        } else if (index == 2) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadPrescriptionScreen()));
+        } else if (index == 3) {
+          Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderTrackingScreen()));
+        } else if (index == 4) {
+          showMessage(context, 'Profile settings are available in the next release.');
+        }
+      },
+      destinations: const [
+        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
+        NavigationDestination(icon: Icon(Icons.storefront_outlined), label: 'Shop'),
+        NavigationDestination(icon: Icon(Icons.upload_file_outlined), label: 'Upload'),
+        NavigationDestination(icon: Icon(Icons.local_shipping_outlined), label: 'Orders'),
+        NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+      ],
+    ),
+  );
+}
+
+class UploadPrescriptionScreen extends StatelessWidget {
+  const UploadPrescriptionScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Upload prescription')),
+    body: ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const Text('Prescription services', style: TextStyle(fontSize: 12, color: teal, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        const Text('Upload your prescription', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        Text('Send it securely so our pharmacy team can review it before your order is confirmed.', style: TextStyle(color: Colors.grey.shade700)),
+        const SizedBox(height: 28),
+        Container(
+          padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
+          decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: teal), color: Colors.white),
+          child: Column(children: [
+            const CircleAvatar(radius: 32, backgroundColor: Color(0xFFE5F6F2), child: Icon(Icons.upload_rounded, color: teal, size: 32)),
+            const SizedBox(height: 14),
+            const Text('Add prescription file', style: TextStyle(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 6),
+            Text('PDF, JPG or PNG up to 5 MB', style: TextStyle(color: Colors.grey.shade600)),
+            const SizedBox(height: 18),
+            FilledButton(onPressed: () => showMessage(context, 'File picker will be connected to Firebase Storage.'), child: const Text('Choose a file')),
+          ]),
+        ),
+        const SizedBox(height: 16),
+        const DemoNote('Your information stays private. A pharmacist can access your prescription only to review your order.'),
+        const SizedBox(height: 16),
+        FilledButton(onPressed: () => showMessage(context, 'Prescription upload is ready for a file.'), child: const Text('Continue')),
+      ],
+    ),
+  );
+}
+
+class OrderTrackingScreen extends StatelessWidget {
+  const OrderTrackingScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Track your order')),
+    body: ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const Text('Your orders', style: TextStyle(fontSize: 12, color: teal, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 8),
+        const Text('Track your order', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 18),
+        Card(child: ListTile(leading: const Icon(Icons.local_shipping_outlined, color: teal), title: const Text('Order #RR-20481'), subtitle: const Text('Arriving today, 14:00–16:00'), trailing: Chip(label: Text('In transit')))),
+        const SizedBox(height: 22),
+        const Text('Delivery progress', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const SizedBox(height: 12),
+        const _ProgressStep('Order confirmed', 'Your order has been received.', true),
+        const _ProgressStep('Preparing your order', 'Pharmacy team is packing your items.', true),
+        const _ProgressStep('On the way', 'Your rider is heading to you.', true),
+        const _ProgressStep('Delivered', 'We will notify you when it arrives.', false),
+        const SizedBox(height: 16),
+        Card(color: const Color(0xFFE5F6F2), child: const ListTile(leading: CircleAvatar(child: Text('TB')), title: Text('Your delivery partner'), subtitle: Text('Thabo M. · Contact rider'))),
+        OutlinedButton(onPressed: () => showMessage(context, 'Support request started.'), child: const Text('Need help with this order? Contact support')),
+      ],
+    ),
+  );
+}
+
+class _ProgressStep extends StatelessWidget {
+  final String title, detail;
+  final bool complete;
+  const _ProgressStep(this.title, this.detail, this.complete);
+  @override
+  Widget build(BuildContext context) => ListTile(
+    leading: CircleAvatar(radius: 12, backgroundColor: complete ? teal : Colors.white, child: Icon(complete ? Icons.check : Icons.circle_outlined, size: 15, color: complete ? Colors.white : Colors.grey)),
+    title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+    subtitle: Text(detail),
   );
 }
 
