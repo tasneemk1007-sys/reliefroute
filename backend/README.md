@@ -1,15 +1,22 @@
 # ReliefRoute Spring Boot API
 
+This backend uses Firebase Admin SDK for the `reliefroute-90279` Firestore and
+Storage project. The service account key is private and is intentionally not in
+the repository.
+
 ## Run locally
 
-1. Install Java 17+ and Maven 3.9+.
-2. From this folder run `docker compose up -d mysql`.
-3. Run `mvn spring-boot:run`.
-4. Check `http://localhost:8080/api/health` and `http://localhost:8080/api/medicines`.
+1. Install Java 21+ and Maven 3.9+.
+2. Ask the database owner for Firebase Console access and generate a service
+   account key.
+3. Rename the key to `firebase-service-account.json` and place it in this folder's
+   `src/main/resources/` directory.
+4. From this folder run `mvn spring-boot:run`.
+5. Check `http://localhost:8080/api/firebase-check`.
 
-The API uses MySQL for persistent data. Local development has authentication
-disabled. For deployment, set `AUTH_REQUIRED=true` and add Firebase Admin token
-verification before exposing protected endpoints. Never commit a service-account
+The generic Firestore API supports medications, pharmacies, users, drivers,
+orders, order_items, deliveries, prescriptions, and refill_reminders. Storage
+paths are `Medicines pic/` and `prescriptions/`. Never commit a service-account
 JSON file.
 
 The current Flutter demo still uses local mock data; the next client step is to
