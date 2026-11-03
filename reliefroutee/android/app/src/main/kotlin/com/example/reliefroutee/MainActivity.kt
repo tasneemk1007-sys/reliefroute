@@ -1,4 +1,4 @@
-package com.example.reliefroutee
+package com.example.reliefroute
 
 import io.flutter.embedding.android.FlutterActivity
 

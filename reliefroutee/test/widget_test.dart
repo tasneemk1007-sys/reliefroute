@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter/material.dart';
-import 'package:reliefroutee/main.dart';
+import 'package:reliefroute/main.dart';
 
 void main() {
   testWidgets('shows the ReliefRoute welcome screen', (tester) async {
