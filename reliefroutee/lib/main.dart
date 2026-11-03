@@ -92,7 +92,12 @@ class _LoginState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                const BrandLogo(),
+                Image.asset(
+                  'assets/reliefroute_logo_mark.png',
+                  height: 100,
+                  fit: BoxFit.contain,
+                  semanticLabel: 'ReliefRoute logo mark',
+                ),
                 const Text(
                   'ReliefRoute',
                   textAlign: TextAlign.center,
