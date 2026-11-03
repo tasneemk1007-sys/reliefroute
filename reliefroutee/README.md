@@ -1,6 +1,6 @@
 # ReliefRoute
 
-ReliefRoute is a Flutter frontend for a South African medication ordering and delivery platform.
+ReliefRoute is a Flutter student project for a South African medication ordering and delivery app.
 
 ## Run
 
@@ -17,9 +17,9 @@ For the demonstration login, enter any username and a password with at least fou
 
 ## Team handoff
 
-The current application is frontend-only. The medicine finder searches local catalogue data. Medical-aid benefits, doctor availability, pharmacy stock, payments, prescription review, authentication, notifications and delivery tracking are not connected to real services.
+The current application uses sample data so that the screens can be tested without a live service. The medicine finder searches the local catalogue. Medical-aid benefits, doctor availability, pharmacy stock, payments, prescription review, authentication, notifications and delivery tracking still need service connections.
 
-Typed domain foundations are kept in `lib/models.dart` and `lib/mock_repository.dart` so approved repositories can replace local data later. Do not store real passwords, payment credentials or medical files in this frontend.
+The data classes are kept in `lib/models.dart` and the sample data is in `lib/mock_repository.dart`. Do not store real passwords, payment details or medical files in this frontend.
 
 ## Verification
 
@@ -27,9 +27,8 @@ The widget tests cover the welcome screen and successful demo login. Run `flutte
 
 ## Next integration work
 
-1. Confirm the approved backend and database architecture.
-2. Add secure authentication and role-based access control.
-3. Connect catalogue, stock, order and prescription repositories.
-4. Add an approved payment gateway without storing card details.
-5. Configure secure file storage and pharmacist workflows.
-6. Add notification and location services only after permissions and privacy requirements are approved.
+1. Connect the Flutter screens to the Spring Boot API.
+2. Add login and user roles.
+3. Connect the catalogue, stock, orders and prescriptions to MySQL.
+4. Add payment and file storage using services that meet the project requirements.
+5. Test the app with sample users and sample orders.
