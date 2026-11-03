@@ -1,17 +1,40 @@
-# reliefroute
+# RELIEFROUTE
 
-A new Flutter project.
+ReliefRoute is a cross-platform Flutter medication ordering and delivery
+platform for patients who may face pharmacy queues, repeated trips,
+transportation limitations, mobility barriers, age, chronic illness, or
+physical disability.
 
-## Getting Started
+## Technology
 
-This project is a starting point for a Flutter application.
+- Frontend: Flutter and Dart
+- Backend: Java and Spring Boot
+- Database: Firebase Cloud Firestore
+- Authentication: Firebase Authentication
+- Storage: Firebase Storage
+- Maps: OpenStreetMap tiles with `flutter_map`
+- Currency: South African Rand (ZAR)
 
-A few resources to get you started if this is your first Flutter project:
+## Run the Flutter app
 
-- [Learn Flutter](https://docs.flutter.dev/get-started/learn-flutter)
-- [Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Flutter learning resources](https://docs.flutter.dev/reference/learning-resources)
+```bash
+cd reliefroutee
+flutter pub get
+flutter run
+```
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Main features
+
+Patient features include medicine browsing, prescriptions, cart and checkout,
+order tracking, order history, reminders, and favourites. The planned staff
+areas cover pharmacist prescription review, driver delivery updates, inventory,
+user management, and reporting.
+
+The current release is a student project using sample data in some screens.
+Firebase production setup requires the private service-account file described
+in `backend/README.md`; that file must never be committed.
+
+## Brand colours
+
+Teal `#087F8C`, Navy `#123047`, Mint `#E5F6F2`, Canvas `#F6F8FA`, Ink `#1F2937`,
+and Muted `#64748B`.

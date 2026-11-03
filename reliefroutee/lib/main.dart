@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
 import 'api_service.dart';
 
-const teal = Color(0xFF8B5CF6);
-const darkTeal = Color(0xFF4C1D95);
+const teal = Color(0xFF087F8C);
+const darkTeal = Color(0xFF123047);
 void main() => runApp(const ReliefRouteApp());
 
 class ReliefRouteApp extends StatelessWidget {
@@ -14,14 +14,14 @@ class ReliefRouteApp extends StatelessWidget {
     theme: ThemeData(
       useMaterial3: true,
       colorSchemeSeed: teal,
-      scaffoldBackgroundColor: const Color(0xFFFCFAFF),
-      appBarTheme: const AppBarTheme(backgroundColor: Color(0xFFFCFAFF)),
+      scaffoldBackgroundColor: const Color(0xFFF6F8FA),
+      appBarTheme: const AppBarTheme(backgroundColor: Color(0xFFF6F8FA)),
       cardTheme: CardThemeData(
         elevation: 0,
         margin: const EdgeInsets.symmetric(vertical: 6),
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(18),
-          side: const BorderSide(color: Color(0xFFEDE9FE)),
+          side: const BorderSide(color: Color(0xFFD8E7E8)),
         ),
       ),
       inputDecorationTheme: InputDecorationTheme(
@@ -194,14 +194,14 @@ class BrandLogo extends StatelessWidget {
                 begin: Alignment.topLeft,
                 end: Alignment.bottomRight,
                 colors: [
-                  Color(0xFFD8B4FE),
-                  Color(0xFF7C3AED),
-                  Color(0xFF4C1D95),
+                  Color(0xFF5EC6C5),
+                  Color(0xFF087F8C),
+                  Color(0xFF123047),
                 ],
               ),
               boxShadow: const [
                 BoxShadow(
-                  color: Color(0x448B5CF6),
+                  color: Color(0x44087F8C),
                   blurRadius: 20,
                   offset: Offset(0, 9),
                 ),
@@ -228,7 +228,7 @@ class BrandLogo extends StatelessWidget {
           const Positioned(
             right: 3,
             top: 5,
-            child: Icon(Icons.auto_awesome, color: Color(0xFFFFE4F2), size: 22),
+            child: Icon(Icons.auto_awesome, color: Color(0xFFD9F2F1), size: 22),
           ),
           const Positioned(
             left: 4,
@@ -251,7 +251,7 @@ class BrandLogo extends StatelessWidget {
               ),
               child: const Icon(
                 Icons.add_rounded,
-                color: Color(0xFF7C3AED),
+                color: teal,
                 size: 22,
               ),
             ),
@@ -326,7 +326,7 @@ class Dashboard extends StatelessWidget {
           padding: const EdgeInsets.all(20),
           decoration: BoxDecoration(
             gradient: const LinearGradient(
-              colors: [Color(0xFFA855F7), Color(0xFF4C1D95)],
+              colors: [Color(0xFF35AEB0), darkTeal],
             ),
             borderRadius: BorderRadius.circular(22),
           ),
@@ -407,17 +407,17 @@ class Dashboard extends StatelessWidget {
             _QuickCard(
               'Medicines',
               Icons.medication_outlined,
-              const Color(0xFFF0E7FF),
+              const Color(0xFFE5F6F2),
             ),
             _QuickCard(
               'Reorder',
               Icons.refresh_rounded,
-              const Color(0xFFFFE4F2),
+              const Color(0xFFD9F2F1),
             ),
             _QuickCard(
               'Reminders',
               Icons.alarm_outlined,
-              const Color(0xFFE4E7FF),
+              const Color(0xFFDDEBF0),
             ),
             _QuickCard(
               'Support',
@@ -468,7 +468,7 @@ class Dashboard extends StatelessWidget {
             children: [
               ListTile(
                 leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFF0E7FF),
+                  backgroundColor: Color(0xFFE5F6F2),
                   child: Icon(Icons.check, color: teal),
                 ),
                 title: const Text('Prescription submitted'),
@@ -481,7 +481,7 @@ class Dashboard extends StatelessWidget {
               const Divider(height: 1),
               ListTile(
                 leading: const CircleAvatar(
-                  backgroundColor: Color(0xFFFFE4F2),
+                  backgroundColor: Color(0xFFD9F2F1),
                   child: Icon(
                     Icons.shopping_bag_outlined,
                     color: Colors.orange,
@@ -538,7 +538,7 @@ class _ServiceTile extends StatelessWidget {
   Widget build(BuildContext context) => Card(
     child: ListTile(
       leading: CircleAvatar(
-        backgroundColor: const Color(0xFFF0E7FF),
+        backgroundColor: const Color(0xFFE5F6F2),
         child: Icon(icon, color: teal),
       ),
       title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
@@ -642,7 +642,7 @@ class CatalogueScreen extends StatelessWidget {
           (item) => Card(
             child: ListTile(
               leading: const CircleAvatar(
-                backgroundColor: Color(0xFFF0E7FF),
+                backgroundColor: Color(0xFFE5F6F2),
                 child: Icon(Icons.medication_outlined, color: teal),
               ),
               title: Text(item),
@@ -738,7 +738,7 @@ class DoctorDirectoryScreen extends StatelessWidget {
           (doctor) => Card(
             child: ListTile(
               leading: const CircleAvatar(
-                backgroundColor: Color(0xFFFFE4F2),
+                backgroundColor: Color(0xFFD9F2F1),
                 child: Icon(Icons.person_outline, color: teal),
               ),
               title: Text(doctor.split(' • ').first),
@@ -965,7 +965,7 @@ class _SmartAssistantState extends State<SmartAssistantScreen> {
               (item) => Card(
                 child: ListTile(
                   leading: const CircleAvatar(
-                    backgroundColor: Color(0xFFF0E7FF),
+                    backgroundColor: Color(0xFFE5F6F2),
                     child: Icon(Icons.medication_outlined, color: teal),
                   ),
                   title: Text(item.name),
