@@ -1,0 +1,5 @@
+target
+.mvn
+*.iml
+firebase-service-account.json
+*.log

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 @RestController
 public class FirebaseCheckController {
@@ -18,9 +19,9 @@ public class FirebaseCheckController {
     private final Firestore firestore;
     private final Bucket bucket;
 
-    public FirebaseCheckController(Firestore firestore, Bucket bucket) {
+    public FirebaseCheckController(Firestore firestore, Optional<Bucket> bucket) {
         this.firestore = firestore;
-        this.bucket = bucket;
+        this.bucket = bucket.orElse(null);
     }
 
     // Open http://localhost:8080/api/firebase-check
@@ -32,10 +33,12 @@ public class FirebaseCheckController {
             collections.add(c.getId());
         }
         List<String> files = new ArrayList<>();
-        for (Blob b : bucket.list(Storage.BlobListOption.pageSize(10)).getValues()) {
-            files.add(b.getName());
+        if (bucket != null) {
+            for (Blob b : bucket.list(Storage.BlobListOption.pageSize(10)).getValues()) {
+                files.add(b.getName());
+            }
         }
         return Map.of("connected", true, "collections", collections,
-                "bucket", bucket.getName(), "storageFiles", files);
+                "bucket", bucket == null ? "disabled" : bucket.getName(), "storageFiles", files);
     }
 }

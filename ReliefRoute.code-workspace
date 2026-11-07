@@ -1,0 +1,11 @@
+{
+  "folders": [
+    { "name": "ReliefRoute Flutter App", "path": "reliefroutee" },
+    { "name": "Backend", "path": "backend" },
+    { "name": "Database and documentation", "path": "." }
+  ],
+  "settings": {
+    "dart.flutterSdkPath": "C:/Users/user/Desktop/IT PROJECT/flutter",
+    "files.exclude": { "**/.dart_tool": true, "**/build": true }
+  }
+}

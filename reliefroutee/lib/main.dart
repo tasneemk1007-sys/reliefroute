@@ -1,10 +1,25 @@
 import 'package:flutter/material.dart';
+
 import 'api_service.dart';
+
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:file_picker/file_picker.dart';
+
+import 'firebase_options.dart';
+
 import 'package:url_launcher/url_launcher.dart';
 
 const teal = Color(0xFF087F8C);
 const darkTeal = Color(0xFF123047);
-void main() => runApp(const ReliefRouteApp());
+const demoMode = bool.fromEnvironment('RELIEFROUTE_DEMO', defaultValue: true);
+
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  runApp(const ReliefRouteApp());
+}
 
 class ReliefRouteApp extends StatelessWidget {
   const ReliefRouteApp({super.key});
@@ -58,7 +73,24 @@ class ReliefRouteApp extends StatelessWidget {
         ),
       ),
     ),
-    home: const LoginScreen(),
+    home: demoMode ? const LoginScreen() : const AuthGate(),
+  );
+}
+
+class AuthGate extends StatelessWidget {
+  const AuthGate({super.key});
+
+  @override
+  Widget build(BuildContext context) => StreamBuilder<User?>(
+    stream: FirebaseAuth.instance.authStateChanges(),
+    builder: (context, snapshot) {
+      if (snapshot.connectionState == ConnectionState.waiting) {
+        return const Scaffold(body: Center(child: CircularProgressIndicator()));
+      }
+      final user = snapshot.data;
+      if (user == null) return const LoginScreen();
+      return Dashboard(name: user.displayName ?? user.email ?? 'Patient');
+    },
   );
 }
 
@@ -73,6 +105,69 @@ class _LoginState extends State<LoginScreen> {
   final user = TextEditingController();
   final password = TextEditingController();
   bool hidden = true;
+  bool busy = false;
+  final api = const ApiService();
+
+  Future<Map<String, dynamic>> _signInWithFirebase(
+    String email,
+    String password,
+  ) async {
+    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+      email: email.trim(),
+      password: password,
+    );
+    final firebaseUser = credential.user;
+    if (firebaseUser == null) throw Exception('Firebase login failed.');
+    return {
+      'id': firebaseUser.uid,
+      'name': firebaseUser.displayName ?? firebaseUser.email ?? email,
+    };
+  }
+
+  Future<void> _resetPassword() async {
+    if (demoMode) {
+      showMessage(context, 'Password reset is unavailable in demo mode.');
+      return;
+    }
+    if (user.text.trim().isEmpty) {
+      showMessage(context, 'Enter your email address first.');
+      return;
+    }
+    try {
+      await FirebaseAuth.instance.sendPasswordResetEmail(
+        email: user.text.trim(),
+      );
+      if (mounted) showMessage(context, 'Password reset email sent.');
+    } on FirebaseAuthException catch (e) {
+      if (mounted) showMessage(context, e.message ?? 'Password reset failed.');
+    }
+  }
+
+  Future<void> _register() async {
+    if (demoMode) {
+      showMessage(
+        context,
+        'Registration is available when demo mode is disabled.',
+      );
+      return;
+    }
+    if (!formKey.currentState!.validate()) return;
+    try {
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(
+            email: user.text.trim(),
+            password: password.text,
+          );
+      await credential.user?.sendEmailVerification();
+      if (mounted)
+        showMessage(
+          context,
+          'Account created. Verify your email before signing in.',
+        );
+    } on FirebaseAuthException catch (e) {
+      if (mounted) showMessage(context, e.message ?? 'Registration failed.');
+    }
+  }
 
   @override
   void dispose() {
@@ -140,30 +235,49 @@ class _LoginState extends State<LoginScreen> {
                 Align(
                   alignment: Alignment.centerRight,
                   child: TextButton(
-                    onPressed: () =>
-                        showMessage(context, 'Password reset service is unavailable.'),
+                    onPressed: _resetPassword,
                     child: const Text('Forgot password?'),
                   ),
                 ),
                 FilledButton(
-                  onPressed: () {
-                    if (formKey.currentState!.validate()) {
-                      Navigator.pushReplacement(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => Dashboard(name: user.text),
-                        ),
-                      );
-                    }
-                  },
-                  child: const Text('Log in'),
+                  onPressed: busy
+                      ? null
+                      : () async {
+                          if (formKey.currentState!.validate()) {
+                            setState(() => busy = true);
+                            try {
+                              final account = demoMode
+                                  ? await api.login(user.text, password.text)
+                                  : await _signInWithFirebase(
+                                      user.text,
+                                      password.text,
+                                    );
+                              if (!mounted) return;
+                              Navigator.pushReplacement(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) => Dashboard(
+                                    name:
+                                        account['name'] as String? ?? user.text,
+                                  ),
+                                ),
+                              );
+                            } catch (e) {
+                              if (context.mounted)
+                                showMessage(
+                                  context,
+                                  e.toString().replaceFirst('Exception: ', ''),
+                                );
+                            } finally {
+                              if (mounted) setState(() => busy = false);
+                            }
+                          }
+                        },
+                  child: Text(busy ? 'Signing in...' : 'Log in'),
                 ),
                 const SizedBox(height: 10),
                 OutlinedButton(
-                  onPressed: () => showMessage(
-                    context,
-                    'Registration is ready for backend integration.',
-                  ),
+                  onPressed: _register,
                   child: const Text('Create an account'),
                 ),
                 const SizedBox(height: 16),
@@ -255,11 +369,7 @@ class BrandLogo extends StatelessWidget {
                 color: Colors.white,
                 shape: BoxShape.circle,
               ),
-              child: const Icon(
-                Icons.add_rounded,
-                color: teal,
-                size: 22,
-              ),
+              child: const Icon(Icons.add_rounded, color: teal, size: 22),
             ),
           ),
         ],
@@ -287,6 +397,20 @@ class Dashboard extends StatelessWidget {
             label: Text('2'),
             child: Icon(Icons.notifications_none),
           ),
+        ),
+        IconButton(
+          tooltip: 'Sign out',
+          onPressed: () async {
+            if (!demoMode) await FirebaseAuth.instance.signOut();
+            if (context.mounted) {
+              Navigator.pushAndRemoveUntil(
+                context,
+                MaterialPageRoute(builder: (_) => const LoginScreen()),
+                (_) => false,
+              );
+            }
+          },
+          icon: const Icon(Icons.logout),
         ),
         const SizedBox(width: 8),
       ],
@@ -542,28 +666,111 @@ class Dashboard extends StatelessWidget {
       selectedIndex: 0,
       onDestinationSelected: (index) {
         if (index == 1) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogueScreen()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CatalogueScreen()),
+          );
         } else if (index == 2) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const UploadPrescriptionScreen()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const UploadPrescriptionScreen()),
+          );
         } else if (index == 3) {
-          Navigator.push(context, MaterialPageRoute(builder: (_) => const OrderTrackingScreen()));
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const OrderTrackingScreen()),
+          );
         } else if (index == 4) {
-          showMessage(context, 'Profile settings are available in the next release.');
+          showMessage(
+            context,
+            'Profile settings are available in the next release.',
+          );
         }
       },
       destinations: const [
-        NavigationDestination(icon: Icon(Icons.home_outlined), selectedIcon: Icon(Icons.home), label: 'Home'),
-        NavigationDestination(icon: Icon(Icons.storefront_outlined), label: 'Shop'),
-        NavigationDestination(icon: Icon(Icons.upload_file_outlined), label: 'Upload'),
-        NavigationDestination(icon: Icon(Icons.local_shipping_outlined), label: 'Orders'),
-        NavigationDestination(icon: Icon(Icons.person_outline), label: 'Profile'),
+        NavigationDestination(
+          icon: Icon(Icons.home_outlined),
+          selectedIcon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.storefront_outlined),
+          label: 'Shop',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.upload_file_outlined),
+          label: 'Upload',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.local_shipping_outlined),
+          label: 'Orders',
+        ),
+        NavigationDestination(
+          icon: Icon(Icons.person_outline),
+          label: 'Profile',
+        ),
       ],
     ),
   );
 }
 
-class UploadPrescriptionScreen extends StatelessWidget {
+class UploadPrescriptionScreen extends StatefulWidget {
   const UploadPrescriptionScreen({super.key});
+
+  @override
+  State<UploadPrescriptionScreen> createState() => _UploadPrescriptionState();
+}
+
+class _UploadPrescriptionState extends State<UploadPrescriptionScreen> {
+  PlatformFile? selected;
+  bool busy = false;
+
+  Future<void> chooseFile() async {
+    final result = await FilePicker.pickFiles(
+      type: FileType.custom,
+      allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+    );
+    if (!mounted || result.isEmpty) return;
+    final file = result.single;
+    final size = await file.length();
+    if (size != null && size > 5 * 1024 * 1024) {
+      showMessage(context, 'The file must be 5 MB or smaller.');
+      return;
+    }
+    setState(() => selected = file);
+  }
+
+  Future<void> upload() async {
+    final file = selected;
+    final user = FirebaseAuth.instance.currentUser;
+    if (file == null) {
+      showMessage(context, 'Choose a prescription file first.');
+      return;
+    }
+    if (user == null && !demoMode) {
+      showMessage(context, 'Sign in before uploading a prescription.');
+      return;
+    }
+    if (demoMode) {
+      showMessage(context, 'Demo mode does not upload medical files.');
+      return;
+    }
+    setState(() => busy = true);
+    try {
+      final path =
+          'prescriptions/${user!.uid}/${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+      final ref = FirebaseStorage.instance.ref(path);
+      await ref.putData(
+        await file.readAsBytes(),
+        SettableMetadata(contentType: file.extension),
+      );
+      if (mounted) showMessage(context, 'Prescription uploaded for review.');
+    } on FirebaseException catch (e) {
+      if (mounted) showMessage(context, e.message ?? 'Upload failed.');
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -571,29 +778,66 @@ class UploadPrescriptionScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text('Prescription services', style: TextStyle(fontSize: 12, color: teal, fontWeight: FontWeight.bold)),
+        const Text(
+          'Prescription services',
+          style: TextStyle(
+            fontSize: 12,
+            color: teal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
-        const Text('Upload your prescription', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+        const Text(
+          'Upload your prescription',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 8),
-        Text('Send it securely so our pharmacy team can review it before your order is confirmed.', style: TextStyle(color: Colors.grey.shade700)),
+        Text(
+          'Send it securely so our pharmacy team can review it before your order is confirmed.',
+          style: TextStyle(color: Colors.grey.shade700),
+        ),
         const SizedBox(height: 28),
         Container(
           padding: const EdgeInsets.symmetric(vertical: 36, horizontal: 20),
-          decoration: BoxDecoration(borderRadius: BorderRadius.circular(18), border: Border.all(color: teal), color: Colors.white),
-          child: Column(children: [
-            const CircleAvatar(radius: 32, backgroundColor: Color(0xFFE5F6F2), child: Icon(Icons.upload_rounded, color: teal, size: 32)),
-            const SizedBox(height: 14),
-            const Text('Add prescription file', style: TextStyle(fontWeight: FontWeight.bold)),
-            const SizedBox(height: 6),
-            Text('PDF, JPG or PNG up to 5 MB', style: TextStyle(color: Colors.grey.shade600)),
-            const SizedBox(height: 18),
-            FilledButton(onPressed: () => showMessage(context, 'File picker will be connected to Firebase Storage.'), child: const Text('Choose a file')),
-          ]),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(18),
+            border: Border.all(color: teal),
+            color: Colors.white,
+          ),
+          child: Column(
+            children: [
+              const CircleAvatar(
+                radius: 32,
+                backgroundColor: Color(0xFFE5F6F2),
+                child: Icon(Icons.upload_rounded, color: teal, size: 32),
+              ),
+              const SizedBox(height: 14),
+              const Text(
+                'Add prescription file',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                'PDF, JPG or PNG up to 5 MB',
+                style: TextStyle(color: Colors.grey.shade600),
+              ),
+              const SizedBox(height: 18),
+              FilledButton(
+                onPressed: busy ? null : chooseFile,
+                child: Text(selected?.name ?? 'Choose a file'),
+              ),
+            ],
+          ),
         ),
         const SizedBox(height: 16),
-        const DemoNote('Your information stays private. A pharmacist can access your prescription only to review your order.'),
+        const DemoNote(
+          'Your information stays private. A pharmacist can access your prescription only to review your order.',
+        ),
         const SizedBox(height: 16),
-        FilledButton(onPressed: () => showMessage(context, 'Prescription upload is ready for a file.'), child: const Text('Continue')),
+        FilledButton(
+          onPressed: busy ? null : upload,
+          child: Text(busy ? 'Uploading...' : 'Continue'),
+        ),
       ],
     ),
   );
@@ -608,21 +852,67 @@ class OrderTrackingScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const Text('Your orders', style: TextStyle(fontSize: 12, color: teal, fontWeight: FontWeight.bold)),
+        const Text(
+          'Your orders',
+          style: TextStyle(
+            fontSize: 12,
+            color: teal,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
         const SizedBox(height: 8),
-        const Text('Track your order', style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold)),
+        const Text(
+          'Track your order',
+          style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 18),
-        Card(child: ListTile(leading: const Icon(Icons.local_shipping_outlined, color: teal), title: const Text('Order #RR-20481'), subtitle: const Text('Arriving today, 14:00–16:00'), trailing: Chip(label: Text('In transit')))),
+        Card(
+          child: ListTile(
+            leading: const Icon(Icons.local_shipping_outlined, color: teal),
+            title: const Text('Order #RR-20481'),
+            subtitle: const Text('Arriving today, 14:00–16:00'),
+            trailing: Chip(label: Text('In transit')),
+          ),
+        ),
         const SizedBox(height: 22),
-        const Text('Delivery progress', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        const Text(
+          'Delivery progress',
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+        ),
         const SizedBox(height: 12),
-        const _ProgressStep('Order confirmed', 'Your order has been received.', true),
-        const _ProgressStep('Preparing your order', 'Pharmacy team is packing your items.', true),
-        const _ProgressStep('On the way', 'Your rider is heading to you.', true),
-        const _ProgressStep('Delivered', 'We will notify you when it arrives.', false),
+        const _ProgressStep(
+          'Order confirmed',
+          'Your order has been received.',
+          true,
+        ),
+        const _ProgressStep(
+          'Preparing your order',
+          'Pharmacy team is packing your items.',
+          true,
+        ),
+        const _ProgressStep(
+          'On the way',
+          'Your rider is heading to you.',
+          true,
+        ),
+        const _ProgressStep(
+          'Delivered',
+          'We will notify you when it arrives.',
+          false,
+        ),
         const SizedBox(height: 16),
-        Card(color: const Color(0xFFE5F6F2), child: const ListTile(leading: CircleAvatar(child: Text('TB')), title: Text('Your delivery partner'), subtitle: Text('Thabo M. · Contact rider'))),
-        OutlinedButton(onPressed: () => showMessage(context, 'Support request started.'), child: const Text('Need help with this order? Contact support')),
+        Card(
+          color: const Color(0xFFE5F6F2),
+          child: const ListTile(
+            leading: CircleAvatar(child: Text('TB')),
+            title: Text('Your delivery partner'),
+            subtitle: Text('Thabo M. · Contact rider'),
+          ),
+        ),
+        OutlinedButton(
+          onPressed: () => showMessage(context, 'Support request started.'),
+          child: const Text('Need help with this order? Contact support'),
+        ),
       ],
     ),
   );
@@ -634,7 +924,15 @@ class _ProgressStep extends StatelessWidget {
   const _ProgressStep(this.title, this.detail, this.complete);
   @override
   Widget build(BuildContext context) => ListTile(
-    leading: CircleAvatar(radius: 12, backgroundColor: complete ? teal : Colors.white, child: Icon(complete ? Icons.check : Icons.circle_outlined, size: 15, color: complete ? Colors.white : Colors.grey)),
+    leading: CircleAvatar(
+      radius: 12,
+      backgroundColor: complete ? teal : Colors.white,
+      child: Icon(
+        complete ? Icons.check : Icons.circle_outlined,
+        size: 15,
+        color: complete ? Colors.white : Colors.grey,
+      ),
+    ),
     title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
     subtitle: Text(detail),
   );
@@ -759,8 +1057,7 @@ class CatalogueScreen extends StatelessWidget {
               title: Text(item),
               subtitle: const Text('Availability • prices shown in ZAR'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () =>
-                  showMessage(context, '$item details opened.'),
+              onTap: () => showMessage(context, '$item details opened.'),
             ),
           ),
         ),
@@ -887,29 +1184,40 @@ class PharmacyDirectoryScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const PageTitle('Nearby pharmacies', 'Choose a pharmacy to view it on a map.'),
-        ...pharmacies.map((pharmacy) => Card(
-          child: ListTile(
-            leading: const CircleAvatar(child: Icon(Icons.local_pharmacy_outlined, color: teal)),
-            title: Text(pharmacy.split(' • ').first),
-            subtitle: Text(pharmacy.split(' • ').last),
-            trailing: IconButton(
-              tooltip: 'Open map',
-              icon: const Icon(Icons.open_in_new),
-              onPressed: () => openExternalLink(
-                context,
-                'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(pharmacy)}',
-                'Opening pharmacy location',
+        const PageTitle(
+          'Nearby pharmacies',
+          'Choose a pharmacy to view it on a map.',
+        ),
+        ...pharmacies.map(
+          (pharmacy) => Card(
+            child: ListTile(
+              leading: const CircleAvatar(
+                child: Icon(Icons.local_pharmacy_outlined, color: teal),
+              ),
+              title: Text(pharmacy.split(' • ').first),
+              subtitle: Text(pharmacy.split(' • ').last),
+              trailing: IconButton(
+                tooltip: 'Open map',
+                icon: const Icon(Icons.open_in_new),
+                onPressed: () => openExternalLink(
+                  context,
+                  'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(pharmacy)}',
+                  'Opening pharmacy location',
+                ),
               ),
             ),
           ),
-        )),
+        ),
       ],
     ),
   );
 }
 
-Future<void> openExternalLink(BuildContext context, String value, String message) async {
+Future<void> openExternalLink(
+  BuildContext context,
+  String value,
+  String message,
+) async {
   final uri = Uri.parse(value);
   if (await canLaunchUrl(uri)) {
     await launchUrl(uri, mode: LaunchMode.externalApplication);
@@ -1015,15 +1323,21 @@ class _SmartAssistantState extends State<SmartAssistantScreen> {
   Future<void> _loadCatalogue() async {
     try {
       final remote = await api.getMedicines();
-      if (!mounted || remote.isEmpty) return;
+      if (!mounted) return;
+      if (remote.isEmpty) {
+        setState(() => loading = false);
+        return;
+      }
       setState(() {
         catalogue.clear();
         for (final item in remote) {
-          catalogue.add(_FinderItem(
-            item['name'] as String? ?? 'Medicine',
-            item['category'] as String? ?? 'Other',
-            item['prescriptionRequired'] as bool? ?? false,
-          ));
+          catalogue.add(
+            _FinderItem(
+              item['name'] as String? ?? 'Medicine',
+              item['category'] as String? ?? 'Other',
+              item['prescriptionRequired'] as bool? ?? false,
+            ),
+          );
         }
         connected = true;
         loading = false;
@@ -1061,8 +1375,8 @@ class _SmartAssistantState extends State<SmartAssistantScreen> {
             loading
                 ? 'Connecting to the backend...'
                 : connected
-                    ? 'Connected to the Spring Boot catalogue.'
-                    : 'Connect to the service to refresh the catalogue.',
+                ? 'Connected to the Spring Boot catalogue.'
+                : 'Connect to the service to refresh the catalogue.',
             style: TextStyle(
               color: connected ? Colors.green.shade700 : Colors.black54,
               fontSize: 12,

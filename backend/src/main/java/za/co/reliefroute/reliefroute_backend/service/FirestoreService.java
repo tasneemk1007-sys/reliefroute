@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 @Service
@@ -39,7 +40,8 @@ public class FirestoreService {
     }
 
     public CollectionReference collectionRef(String name) throws Exception {
-        CollectionReference main = firestore.collection(name);
+        String collectionName = Objects.requireNonNull(name, "collection name must not be null");
+        CollectionReference main = firestore.collection(collectionName);
         String legacy = LEGACY_NAMES.get(name);
         if (legacy != null && main.limit(1).get().get().isEmpty()) {
             CollectionReference old = firestore.collection(legacy);
@@ -59,34 +61,40 @@ public class FirestoreService {
     }
 
     public Map<String, Object> get(String name, String id) throws Exception {
-        DocumentSnapshot d = collectionRef(name).document(id).get().get();
+        DocumentSnapshot d = collectionRef(name).document(required(id, "document id")).get().get();
         return d.exists() ? toMap(d) : null;
     }
 
     public Map<String, Object> create(String name, Map<String, Object> data) throws Exception {
-        DocumentReference ref = collectionRef(name).add(data).get();
-        Map<String, Object> out = new LinkedHashMap<>(data);
+        Map<String, Object> payload = Objects.requireNonNull(data, "document data must not be null");
+        DocumentReference ref = collectionRef(name).add(payload).get();
+        Map<String, Object> out = new LinkedHashMap<>(payload);
         out.put("id", ref.getId());
         return out;
     }
 
     // Partial update: only the fields you send are changed.
     public boolean update(String name, String id, Map<String, Object> data) throws Exception {
-        DocumentReference ref = collectionRef(name).document(id);
+        Map<String, Object> payload = Objects.requireNonNull(data, "document data must not be null");
+        DocumentReference ref = collectionRef(name).document(required(id, "document id"));
         if (!ref.get().get().exists()) {
             return false;
         }
-        ref.set(data, SetOptions.merge()).get();
+        ref.set(payload, SetOptions.merge()).get();
         return true;
     }
 
     public boolean delete(String name, String id) throws Exception {
-        DocumentReference ref = collectionRef(name).document(id);
+        DocumentReference ref = collectionRef(name).document(required(id, "document id"));
         if (!ref.get().get().exists()) {
             return false;
         }
         ref.delete().get();
         return true;
+    }
+
+    private String required(String value, String description) {
+        return Objects.requireNonNull(value, description + " must not be null");
     }
 
     // "id" in every result is the Firestore document ID.

@@ -17,6 +17,23 @@ physical disability.
 
 ## Run the Flutter app
 
+The configured Flutter application is in `reliefroutee`. Open
+`ReliefRoute.code-workspace` in VS Code, or run the root launcher:
+
+```powershell
+.\run_reliefroute.ps1
+```
+
+Choose a device when needed:
+
+```powershell
+.\run_reliefroute.ps1 -Device chrome
+.\run_reliefroute.ps1 -Device android
+```
+
+Do not run `flutter run` from the repository root; that selects the separate
+starter project and does not include the configured Web Firebase app.
+
 ```bash
 cd reliefroutee
 flutter pub get

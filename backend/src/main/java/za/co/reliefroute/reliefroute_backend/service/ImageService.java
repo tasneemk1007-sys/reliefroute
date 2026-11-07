@@ -11,6 +11,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.Optional;
 
 @Service
 public class ImageService {
@@ -23,13 +24,14 @@ public class ImageService {
 
     private final Bucket bucket;
 
-    public ImageService(Bucket bucket) {
-        this.bucket = bucket;
+    public ImageService(Optional<Bucket> bucket) {
+        this.bucket = bucket.orElse(null);
     }
 
     // Every picture in the folder, with a temporary download link (valid 7 days).
     public List<Map<String, String>> listAll() {
         List<Map<String, String>> out = new ArrayList<>();
+        if (bucket == null) return out;
         for (Map.Entry<String, Blob> e : blobsByStem().entrySet()) {
             Map<String, String> item = new LinkedHashMap<>();
             item.put("name", e.getValue().getName());
@@ -42,6 +44,7 @@ public class ImageService {
     // File names (e.g. "allergex-4.png") of every picture in the folder.
     public List<String> fileNames() {
         List<String> out = new ArrayList<>();
+        if (bucket == null) return out;
         for (Blob b : bucket.list(Storage.BlobListOption.prefix(FOLDER)).iterateAll()) {
             if (!b.getName().endsWith("/")) {
                 out.add(b.getName().substring(FOLDER.length()));
@@ -120,6 +123,7 @@ public class ImageService {
 
     private Map<String, Blob> blobsByStem() {
         Map<String, Blob> out = new LinkedHashMap<>();
+        if (bucket == null) return out;
         for (Blob b : bucket.list(Storage.BlobListOption.prefix(FOLDER)).iterateAll()) {
             if (b.getName().endsWith("/")) {
                 continue;

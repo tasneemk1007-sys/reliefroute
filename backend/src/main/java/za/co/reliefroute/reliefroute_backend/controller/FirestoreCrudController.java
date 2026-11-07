@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 import za.co.reliefroute.reliefroute_backend.service.FirestoreService;
 import za.co.reliefroute.reliefroute_backend.service.ImageService;
+import za.co.reliefroute.reliefroute_backend.service.MedicineJdbcService;
 
 import java.util.List;
 import java.util.Map;
@@ -33,15 +34,21 @@ public class FirestoreCrudController {
 
     private final FirestoreService db;
     private final ImageService images;
+    private final MedicineJdbcService medicines;
 
-    public FirestoreCrudController(FirestoreService db, ImageService images) {
+    public FirestoreCrudController(FirestoreService db, ImageService images, MedicineJdbcService medicines) {
         this.db = db;
         this.images = images;
+        this.medicines = medicines;
     }
 
     @GetMapping("/{collection}")
-    public List<Map<String, Object>> list(@PathVariable String collection) throws Exception {
+    public List<Map<String, Object>> list(@PathVariable String collection,
+                                          @org.springframework.web.bind.annotation.RequestParam(defaultValue = "") String q) throws Exception {
         check(collection);
+        if (collection.equals("medications")) {
+            return medicines.list(q);
+        }
         List<Map<String, Object>> items = db.list(collection);
         if (collection.equals("medications")) {
             images.addImageUrls(items);
@@ -52,6 +59,13 @@ public class FirestoreCrudController {
     @GetMapping("/{collection}/{id}")
     public Map<String, Object> get(@PathVariable String collection, @PathVariable String id) throws Exception {
         check(collection);
+        if (collection.equals("medications")) {
+            try {
+                return medicines.get(id);
+            } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+                throw notFound(collection + "/" + id + " not found");
+            }
+        }
         Map<String, Object> item = db.get(collection, id);
         if (item == null) {
             throw notFound(collection + "/" + id + " not found");

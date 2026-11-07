@@ -14,28 +14,57 @@ import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.Files;
+import java.nio.file.Path;
 
 @Configuration
 public class FirebaseConfig {
 
-    @Value("${firebase.credentials-file}")
+    @Value("${reliefroute.firebase.service-account:}")
     private String credentialsFile;
 
-    @Value("${firebase.storage-bucket}")
+    @Value("${reliefroute.firebase.storage-bucket}")
     private String storageBucket;
+
+    @Value("${reliefroute.firebase.project-id:}")
+    private String projectId;
 
     @Bean
     public FirebaseApp firebaseApp() throws IOException {
         if (!FirebaseApp.getApps().isEmpty()) {
             return FirebaseApp.getInstance();
         }
-        try (InputStream key = new ClassPathResource(credentialsFile).getInputStream()) {
-            FirebaseOptions options = FirebaseOptions.builder()
-                    .setCredentials(GoogleCredentials.fromStream(key))
-                    .setStorageBucket(storageBucket)
-                    .build();
-            return FirebaseApp.initializeApp(options);
+        FirebaseOptions.Builder options = FirebaseOptions.builder()
+                .setCredentials(credentials());
+        if (!projectId.isBlank()) {
+            options.setProjectId(projectId);
         }
+        if (storageBucket != null && !storageBucket.isBlank()) {
+            options.setStorageBucket(storageBucket);
+        }
+        return FirebaseApp.initializeApp(options.build());
+    }
+
+    /**
+     * Cloud Run supplies Application Default Credentials through its service
+     * account. A local JSON key remains supported for local development only.
+     */
+    private GoogleCredentials credentials() throws IOException {
+        if (credentialsFile != null && !credentialsFile.isBlank()) {
+            Path path = Path.of(credentialsFile);
+            if (Files.exists(path)) {
+                try (InputStream key = Files.newInputStream(path)) {
+                    return GoogleCredentials.fromStream(key);
+                }
+            }
+            ClassPathResource resource = new ClassPathResource(credentialsFile);
+            if (resource.exists()) {
+                try (InputStream key = resource.getInputStream()) {
+                    return GoogleCredentials.fromStream(key);
+                }
+            }
+        }
+        return GoogleCredentials.getApplicationDefault();
     }
 
     @Bean
@@ -44,6 +73,7 @@ public class FirebaseConfig {
     }
 
     @Bean
+    @org.springframework.boot.autoconfigure.condition.ConditionalOnProperty(name = "reliefroute.firebase.storage-enabled", havingValue = "true")
     public Bucket storageBucket(FirebaseApp app) {
         return StorageClient.getInstance(app).bucket();
     }

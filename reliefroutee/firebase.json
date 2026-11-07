@@ -1,0 +1,1 @@
+{"flutter":{"platforms":{"android":{"default":{"projectId":"reliefroute4","appId":"1:522702830239:android:5286655c4e7830d57740aa","fileOutput":"android/app/google-services.json"}},"dart":{"lib/firebase_options.dart":{"projectId":"reliefroute4","configurations":{"ios":"1:522702830239:ios:b3c56aef9433b55e7740aa"}}}}},"storage":{"rules":"firebase/storage.rules"}}

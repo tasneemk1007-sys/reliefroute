@@ -9,7 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
-import za.co.reliefroute.reliefroute_backend.service.OrderService;
+import za.co.reliefroute.reliefroute_backend.service.OrderJdbcService;
 
 import java.util.List;
 import java.util.Map;
@@ -18,9 +18,9 @@ import java.util.Map;
 @RequestMapping("/api/orders")
 public class OrderController {
 
-    private final OrderService orders;
+    private final OrderJdbcService orders;
 
-    public OrderController(OrderService orders) {
+    public OrderController(OrderJdbcService orders) {
         this.orders = orders;
     }
 
@@ -43,19 +43,19 @@ public class OrderController {
     // GET /api/orders/user/{userId} -> a customer's orders, newest first
     @GetMapping("/user/{userId}")
     public List<Map<String, Object>> forUser(@PathVariable String userId) throws Exception {
-        return orders.ordersForUser(userId);
+        return orders.forUser(userId);
     }
 
     // PUT /api/orders/{id}/status   { "status": "Out for Delivery" }
     // Allowed: Pending, Confirmed, Out for Delivery, Delivered
     @PutMapping("/{id}/status")
     public Map<String, Object> status(@PathVariable String id, @RequestBody Map<String, Object> body) throws Exception {
-        return orders.updateStatus(id, String.valueOf(body.getOrDefault("status", "")).trim());
+        throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Order status updates are being migrated to MySQL");
     }
 
     // PUT /api/orders/{id}/assign-driver   { "driver_id": "driver_001" }
     @PutMapping("/{id}/assign-driver")
     public Map<String, Object> assignDriver(@PathVariable String id, @RequestBody Map<String, Object> body) throws Exception {
-        return orders.assignDriver(id, String.valueOf(body.getOrDefault("driver_id", "")).trim());
+        throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Driver assignment is not yet migrated to MySQL");
     }
 }
