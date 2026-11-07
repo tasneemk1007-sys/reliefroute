@@ -13,7 +13,7 @@ import 'package:url_launcher/url_launcher.dart';
 
 const teal = Color(0xFF087F8C);
 const darkTeal = Color(0xFF123047);
-const demoMode = bool.fromEnvironment('RELIEFROUTE_DEMO', defaultValue: true);
+const demoMode = bool.fromEnvironment('RELIEFROUTE_DEMO', defaultValue: false);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
