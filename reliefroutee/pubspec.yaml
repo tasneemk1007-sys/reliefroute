@@ -56,9 +56,9 @@ dev_dependencies:
 flutter_launcher_icons:
   android: true
   ios: false
-  image_path: assets/reliefroute_logo_mark.png
+  image_path: assets/reliefroute_app_icon.png
   adaptive_icon_background: '#087F8C'
-  adaptive_icon_foreground: assets/reliefroute_logo_mark.png
+  adaptive_icon_foreground: assets/reliefroute_app_icon.png
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec
@@ -105,3 +105,4 @@ flutter:
   #
   # For details regarding fonts from package dependencies,
   # see https://flutter.dev/to/font-from-package
+
