@@ -1,0 +1,23 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "ReliefRoute (Samsung Android)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/reliefroutee",
+      "program": "${workspaceFolder}/reliefroutee/lib/main.dart",
+      "deviceId": "RFCX60B6DGR",
+      "toolArgs": ["--dart-define=RELIEFROUTE_DEMO=true"]
+    },
+    {
+      "name": "ReliefRoute (Chrome)",
+      "type": "dart",
+      "request": "launch",
+      "cwd": "${workspaceFolder}/reliefroutee",
+      "program": "${workspaceFolder}/reliefroutee/lib/main.dart",
+      "deviceId": "chrome",
+      "toolArgs": ["--dart-define=RELIEFROUTE_DEMO=true"]
+    }
+  ]
+}
