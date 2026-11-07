@@ -189,15 +189,10 @@ class _LoginState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Image.asset(
-                  'assets/reliefroute_logo_mark.png',
-                  height: 100,
+                  'assets/reliefroute_brand_logo.png',
+                  height: 170,
                   fit: BoxFit.contain,
-                  semanticLabel: 'ReliefRoute logo mark',
-                ),
-                const Text(
-                  'ReliefRoute',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
+                  semanticLabel: 'ReliefRoute — Healthcare, closer to you',
                 ),
                 const SizedBox(height: 40),
                 const Text(
