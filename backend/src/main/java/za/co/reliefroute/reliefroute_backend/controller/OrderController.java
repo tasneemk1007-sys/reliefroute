@@ -9,6 +9,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
+import jakarta.servlet.http.HttpServletRequest;
 import za.co.reliefroute.reliefroute_backend.service.OrderJdbcService;
 
 import java.util.List;
@@ -30,8 +31,12 @@ public class OrderController {
     //   "items":[ {"medication_id":"med_001","quantity":2} ] }
     @PostMapping("/place")
     @ResponseStatus(HttpStatus.CREATED)
-    public Map<String, Object> place(@RequestBody Map<String, Object> body) throws Exception {
-        return orders.place(body);
+    public Map<String, Object> place(@RequestBody Map<String, Object> body,
+                                     HttpServletRequest request) throws Exception {
+        Map<String, Object> ownedBody = new java.util.LinkedHashMap<>(body);
+        Object uid = request.getAttribute("firebaseUid");
+        if (uid != null) ownedBody.put("user_id", uid);
+        return orders.place(ownedBody);
     }
 
     // GET /api/orders/{id}/tracking -> order + items + delivery + driver
