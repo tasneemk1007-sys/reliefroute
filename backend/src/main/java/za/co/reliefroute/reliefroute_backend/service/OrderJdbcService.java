@@ -58,8 +58,12 @@ public class OrderJdbcService {
         return jdbc.queryForList("SELECT o.reference,o.status,o.payment_status,o.subtotal,o.delivery_fee,o.total,o.created_at FROM orders o JOIN users u ON u.id=o.user_id WHERE u.firebase_uid=? ORDER BY o.created_at DESC", firebaseUid);
     }
 
-    public Map<String, Object> tracking(String reference) {
-        return jdbc.queryForMap("SELECT reference,status,payment_status,subtotal,delivery_fee,total,created_at,updated_at FROM orders WHERE reference=?", reference);
+    public Map<String, Object> tracking(String reference, String firebaseUid) {
+        try {
+            return jdbc.queryForMap("SELECT o.reference,o.status,o.payment_status,o.subtotal,o.delivery_fee,o.total,o.created_at,o.updated_at FROM orders o JOIN users u ON u.id=o.user_id WHERE o.reference=? AND u.firebase_uid=?", reference, firebaseUid);
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+            throw notFound("Order not found");
+        }
     }
 
     private Long createAddress(Long userId, String value) {

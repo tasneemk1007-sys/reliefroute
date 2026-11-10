@@ -41,14 +41,18 @@ public class OrderController {
 
     // GET /api/orders/{id}/tracking -> order + items + delivery + driver
     @GetMapping("/{id}/tracking")
-    public Map<String, Object> tracking(@PathVariable String id) throws Exception {
-        return orders.tracking(id);
+    public Map<String, Object> tracking(@PathVariable String id, HttpServletRequest request) throws Exception {
+        return orders.tracking(id, authenticatedUid(request));
     }
 
     // GET /api/orders/user/{userId} -> a customer's orders, newest first
     @GetMapping("/user/{userId}")
-    public List<Map<String, Object>> forUser(@PathVariable String userId) throws Exception {
-        return orders.forUser(userId);
+    public List<Map<String, Object>> forUser(@PathVariable String userId, HttpServletRequest request) throws Exception {
+        String uid = authenticatedUid(request);
+        if (!uid.equals(userId)) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_FOUND, "Orders not found");
+        }
+        return orders.forUser(uid);
     }
 
     // PUT /api/orders/{id}/status   { "status": "Out for Delivery" }
@@ -62,5 +66,13 @@ public class OrderController {
     @PutMapping("/{id}/assign-driver")
     public Map<String, Object> assignDriver(@PathVariable String id, @RequestBody Map<String, Object> body) throws Exception {
         throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Driver assignment is not yet migrated to MySQL");
+    }
+
+    private String authenticatedUid(HttpServletRequest request) {
+        Object uid = request.getAttribute("firebaseUid");
+        if (uid == null || String.valueOf(uid).isBlank()) {
+            throw new org.springframework.web.server.ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user required");
+        }
+        return String.valueOf(uid);
     }
 }

@@ -3,6 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     function signedIn() { return request.auth != null; }
     function owns(uid) { return signedIn() && request.auth.uid == uid; }
+    function admin() { return signedIn() && request.auth.token.role == 'admin'; }
 
     match /users/{uid} {
       allow read: if owns(uid);
@@ -20,7 +21,9 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update: if owns(resource.data.userId)
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.get('status', resource.data.get('status', 'active')) == resource.data.get('status', 'active');
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['name', 'dosage', 'frequency', 'instructions', 'startDate', 'endDate', 'updatedAt']);
+      allow update: if admin();
       allow delete: if owns(resource.data.userId);
     }
 
@@ -29,13 +32,12 @@ service cloud.firestore {
       allow create: if signedIn()
         && request.resource.data.userId == request.auth.uid
         && request.resource.data.get('status', 'requested') == 'requested';
+      allow update: if admin();
       allow update: if owns(resource.data.userId)
         && request.resource.data.userId == request.auth.uid
-        && request.resource.data.get('status', resource.data.get('status', 'requested'))
-          == resource.data.get('status', 'requested')
-          || (owns(resource.data.userId)
-            && request.resource.data.userId == request.auth.uid
-            && request.resource.data.status == 'cancelled');
+        && resource.data.status in ['requested', 'confirmed']
+        && request.resource.data.status == 'cancelled'
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['status', 'updatedAt']);
       allow delete: if owns(resource.data.userId);
     }
 

@@ -11,6 +11,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
+import jakarta.servlet.http.HttpServletRequest;
 import za.co.reliefroute.reliefroute_backend.service.FirestoreService;
 import za.co.reliefroute.reliefroute_backend.service.ImageService;
 import za.co.reliefroute.reliefroute_backend.service.MedicineJdbcService;
@@ -44,8 +45,9 @@ public class FirestoreCrudController {
 
     @GetMapping("/{collection}")
     public List<Map<String, Object>> list(@PathVariable String collection,
-                                          @org.springframework.web.bind.annotation.RequestParam(defaultValue = "") String q) throws Exception {
-        check(collection);
+                                          @org.springframework.web.bind.annotation.RequestParam(defaultValue = "") String q,
+                                          HttpServletRequest request) throws Exception {
+        checkRead(collection, request);
         if (collection.equals("medications")) {
             return medicines.list(q);
         }
@@ -57,8 +59,9 @@ public class FirestoreCrudController {
     }
 
     @GetMapping("/{collection}/{id}")
-    public Map<String, Object> get(@PathVariable String collection, @PathVariable String id) throws Exception {
-        check(collection);
+    public Map<String, Object> get(@PathVariable String collection, @PathVariable String id,
+                                   HttpServletRequest request) throws Exception {
+        checkRead(collection, request);
         if (collection.equals("medications")) {
             try {
                 return medicines.get(id);
@@ -79,28 +82,46 @@ public class FirestoreCrudController {
     @PostMapping("/{collection}")
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> create(@PathVariable String collection,
-                                      @RequestBody Map<String, Object> body) throws Exception {
-        check(collection);
+                                      @RequestBody Map<String, Object> body,
+                                      HttpServletRequest request) throws Exception {
+        requireAdmin(request);
         return db.create(collection, body);
     }
 
     @PutMapping("/{collection}/{id}")
     public Map<String, Object> update(@PathVariable String collection, @PathVariable String id,
-                                      @RequestBody Map<String, Object> body) throws Exception {
-        check(collection);
+                                      @RequestBody Map<String, Object> body,
+                                      HttpServletRequest request) throws Exception {
+        requireAdmin(request);
         if (!db.update(collection, id, body)) {
             throw notFound(collection + "/" + id + " not found");
         }
-        return get(collection, id);
+        return get(collection, id, request);
     }
 
     @DeleteMapping("/{collection}/{id}")
     public Map<String, Object> delete(@PathVariable String collection, @PathVariable String id) throws Exception {
-        check(collection);
-        if (!db.delete(collection, id)) {
-            throw notFound(collection + "/" + id + " not found");
+        throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Generic collection deletes are disabled");
+    }
+
+    private void requireAdmin(HttpServletRequest request) {
+        if (!isAdmin(request)) {
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Administrator role required");
         }
-        return Map.of("deleted", id);
+    }
+
+    private boolean isAdmin(HttpServletRequest request) {
+        Object claims = request.getAttribute("firebaseClaims");
+        return claims instanceof Map<?, ?> map && "admin".equals(String.valueOf(map.get("role")));
+    }
+
+    private void checkRead(String collection, HttpServletRequest request) {
+        if (!collection.equals("medications") || !db.isAllowed(collection)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection is not available through this API");
+        }
+        if (request.getAttribute("firebaseUid") == null) {
+            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "Authenticated user required");
+        }
     }
 
     private void check(String collection) {
