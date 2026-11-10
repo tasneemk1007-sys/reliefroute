@@ -11,7 +11,7 @@ class ApiService {
     ),
     this.demoMode = const bool.fromEnvironment(
       'RELIEFROUTE_DEMO',
-      defaultValue: true,
+      defaultValue: false,
     ),
   });
 
@@ -172,8 +172,9 @@ class ApiService {
       headers: {'Content-Type': 'application/json'},
       body: jsonEncode({'fileName': fileName}),
     );
-    if (response.statusCode != 201)
+    if (response.statusCode != 201) {
       throw Exception('Could not submit prescription');
+    }
     return jsonDecode(response.body) as Map<String, dynamic>;
   }
 

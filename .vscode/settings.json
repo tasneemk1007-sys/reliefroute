@@ -1,7 +1,8 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.import.exclusions": [
-        "**/reliefroutee/android/**"
+        "**/android/**",
+        "**/reliefrouteDB/**"
     ],
     "java.compile.nullAnalysis.mode": "automatic"
 }

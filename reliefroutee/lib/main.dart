@@ -108,6 +108,43 @@ class _LoginState extends State<LoginScreen> {
   bool busy = false;
   final api = const ApiService();
 
+  static final _emailPattern = RegExp(
+    r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
+  );
+
+  String? _validateEmail(String? value) {
+    final email = value?.trim() ?? '';
+    if (email.isEmpty || !_emailPattern.hasMatch(email)) {
+      return 'Please enter a valid email address.';
+    }
+    return null;
+  }
+
+  String _firebaseMessage(FirebaseAuthException error, {bool registering = false}) {
+    switch (error.code) {
+      case 'invalid-email':
+        return 'Please enter a valid email address.';
+      case 'wrong-password':
+      case 'invalid-credential':
+      case 'user-not-found':
+        return registering
+            ? 'No account was found. Please create an account first.'
+            : 'Incorrect email or password.';
+      case 'email-already-in-use':
+        return 'An account with this email already exists. Try logging in.';
+      case 'weak-password':
+        return 'Choose a stronger password with at least 6 characters.';
+      case 'network-request-failed':
+        return 'Please check your internet connection and try again.';
+      case 'too-many-requests':
+        return 'Too many attempts. Please wait a moment and try again.';
+      default:
+        return registering
+            ? 'We could not create your account. Please try again.'
+            : 'We could not sign you in. Please try again.';
+    }
+  }
+
   Future<Map<String, dynamic>> _signInWithFirebase(
     String email,
     String password,
@@ -129,8 +166,8 @@ class _LoginState extends State<LoginScreen> {
       showMessage(context, 'Password reset is unavailable in demo mode.');
       return;
     }
-    if (user.text.trim().isEmpty) {
-      showMessage(context, 'Enter your email address first.');
+    if (_validateEmail(user.text) != null) {
+      showMessage(context, 'Please enter a valid email address.');
       return;
     }
     try {
@@ -139,7 +176,7 @@ class _LoginState extends State<LoginScreen> {
       );
       if (mounted) showMessage(context, 'Password reset email sent.');
     } on FirebaseAuthException catch (e) {
-      if (mounted) showMessage(context, e.message ?? 'Password reset failed.');
+      if (mounted) showMessage(context, _firebaseMessage(e));
     }
   }
 
@@ -151,7 +188,8 @@ class _LoginState extends State<LoginScreen> {
       );
       return;
     }
-    if (!formKey.currentState!.validate()) return;
+    if (busy || !formKey.currentState!.validate()) return;
+    setState(() => busy = true);
     try {
       final credential = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
@@ -159,13 +197,16 @@ class _LoginState extends State<LoginScreen> {
             password: password.text,
           );
       await credential.user?.sendEmailVerification();
-      if (mounted)
+      if (mounted) {
         showMessage(
           context,
           'Account created. Verify your email before signing in.',
         );
+      }
     } on FirebaseAuthException catch (e) {
-      if (mounted) showMessage(context, e.message ?? 'Registration failed.');
+      if (mounted) showMessage(context, _firebaseMessage(e, registering: true));
+    } finally {
+      if (mounted) setState(() => busy = false);
     }
   }
 
@@ -178,9 +219,17 @@ class _LoginState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) => Scaffold(
-    body: Center(
-      child: SingleChildScrollView(
-        padding: const EdgeInsets.all(26),
+    resizeToAvoidBottomInset: true,
+    body: SafeArea(
+      child: Center(
+        child: SingleChildScrollView(
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
+          padding: EdgeInsets.fromLTRB(
+            26,
+            26,
+            26,
+            26 + MediaQuery.viewInsetsOf(context).bottom,
+          ),
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 480),
           child: Form(
@@ -204,11 +253,11 @@ class _LoginState extends State<LoginScreen> {
                 const SizedBox(height: 24),
                 TextFormField(
                   controller: user,
-                  decoration: const InputDecoration(
-                    labelText: 'Username or email',
-                  ),
-                  validator: (v) =>
-                      v == null || v.isEmpty ? 'Enter your username.' : null,
+                  keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autocorrect: false,
+                  decoration: const InputDecoration(labelText: 'Email address'),
+                  validator: _validateEmail,
                 ),
                 const SizedBox(height: 14),
                 TextFormField(
@@ -223,8 +272,9 @@ class _LoginState extends State<LoginScreen> {
                       ),
                     ),
                   ),
-                  validator: (v) => v == null || v.length < 4
-                      ? 'Enter at least 4 characters.'
+                  textInputAction: TextInputAction.done,
+                  validator: (v) => v == null || v.length < 6
+                      ? 'Enter at least 6 characters.'
                       : null,
                 ),
                 Align(
@@ -257,14 +307,18 @@ class _LoginState extends State<LoginScreen> {
                                   ),
                                 ),
                               );
-                            } catch (e) {
-                              if (context.mounted)
-                                showMessage(
-                                  context,
-                                  e.toString().replaceFirst('Exception: ', ''),
-                                );
+                            } on FirebaseAuthException catch (e) {
+                              if (context.mounted) {
+                                showMessage(context, _firebaseMessage(e));
+                              }
+                            } catch (_) {
+                              if (context.mounted) {
+                                showMessage(context, 'We could not sign you in. Please try again.');
+                              }
                             } finally {
-                              if (mounted) setState(() => busy = false);
+                              if (mounted) {
+                                setState(() => busy = false);
+                              }
                             }
                           }
                         },
@@ -285,7 +339,8 @@ class _LoginState extends State<LoginScreen> {
           ),
         ),
       ),
-    ),
+        ),
+      ),
   );
 }
 
