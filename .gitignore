@@ -49,4 +49,10 @@ app.*.map.json
 # Firebase credentials
 firebase-service-account.json
 **/firebase-service-account.json
+firebase-credentials/
+**/firebase-credentials/
+serviceAccountKey.json
+**/serviceAccountKey.json
+# Firebase Admin SDK downloads commonly use this filename pattern.
+**/*-firebase-adminsdk-*.json
 backend/target/
