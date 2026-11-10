@@ -15,8 +15,6 @@ import 'package:url_launcher/url_launcher.dart';
 
 const teal = Color(0xFF087F8C);
 const darkTeal = Color(0xFF123047);
-const demoMode = bool.fromEnvironment('RELIEFROUTE_DEMO', defaultValue: false);
-
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Firebase.apps.isEmpty) {
@@ -81,7 +79,7 @@ class ReliefRouteApp extends StatelessWidget {
         ),
       ),
     ),
-    home: demoMode ? LoginScreen(auth: auth) : AuthGate(auth: auth),
+    home: AuthGate(auth: auth),
   );
 }
 
@@ -118,8 +116,6 @@ class _LoginState extends State<LoginScreen> {
   final password = TextEditingController();
   bool hidden = true;
   bool busy = false;
-  final api = const ApiService();
-
   FirebaseAuth get auth => widget.auth ?? FirebaseAuth.instance;
 
   static final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
@@ -177,10 +173,6 @@ class _LoginState extends State<LoginScreen> {
   }
 
   Future<void> _resetPassword() async {
-    if (demoMode) {
-      showMessage(context, 'Password reset is unavailable in demo mode.');
-      return;
-    }
     if (_validateEmail(user.text) != null) {
       showMessage(context, 'Please enter a valid email address.');
       return;
@@ -276,12 +268,10 @@ class _LoginState extends State<LoginScreen> {
                             if (formKey.currentState!.validate()) {
                               setState(() => busy = true);
                               try {
-                                final account = demoMode
-                                    ? await api.login(user.text, password.text)
-                                    : await _signInWithFirebase(
-                                        user.text,
-                                        password.text,
-                                      );
+                                final account = await _signInWithFirebase(
+                                  user.text,
+                                  password.text,
+                                );
                                 if (!context.mounted) return;
                                 final navigator = Navigator.of(context);
                                 navigator.pushReplacement(
@@ -633,7 +623,7 @@ class Dashboard extends StatelessWidget {
         IconButton(
           tooltip: 'Sign out',
           onPressed: () async {
-            if (!demoMode) await (auth ?? FirebaseAuth.instance).signOut();
+            await (auth ?? FirebaseAuth.instance).signOut();
             if (context.mounted) {
               Navigator.pushAndRemoveUntil(
                 context,
@@ -992,18 +982,14 @@ class _UploadPrescriptionState extends State<UploadPrescriptionScreen> {
       showMessage(context, 'Choose a prescription file first.');
       return;
     }
-    if (user == null && !demoMode) {
+    if (user == null) {
       showMessage(context, 'Sign in before uploading a prescription.');
-      return;
-    }
-    if (demoMode) {
-      showMessage(context, 'Demo mode does not upload medical files.');
       return;
     }
     setState(() => busy = true);
     try {
       final path =
-          'prescriptions/${user!.uid}/${DateTime.now().millisecondsSinceEpoch}_${file.name}';
+          'prescriptions/${user.uid}/${DateTime.now().millisecondsSinceEpoch}_${file.name}';
       final ref = FirebaseStorage.instance.ref(path);
       await ref.putData(
         await file.readAsBytes(),

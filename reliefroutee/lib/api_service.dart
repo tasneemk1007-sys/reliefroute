@@ -9,22 +9,15 @@ class ApiService {
       'API_BASE_URL',
       defaultValue: 'http://localhost:8080/api',
     ),
-    this.demoMode = const bool.fromEnvironment(
-      'RELIEFROUTE_DEMO',
-      defaultValue: false,
-    ),
   });
 
   final String baseUrl;
-  final bool demoMode;
 
   Future<Map<String, String>> _headers({bool json = false}) async {
     final headers = <String, String>{'Accept': 'application/json'};
     if (json) headers['Content-Type'] = 'application/json';
-    if (!demoMode) {
-      final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (token != null) headers['Authorization'] = 'Bearer $token';
-    }
+    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
+    if (token != null) headers['Authorization'] = 'Bearer $token';
     return headers;
   }
 
@@ -52,9 +45,6 @@ class ApiService {
   }
 
   Future<Map<String, dynamic>> login(String email, String password) async {
-    if (demoMode) {
-      return {'id': 'demo-user', 'name': email.trim()};
-    }
     final response = await http.post(
       Uri.parse('$baseUrl/auth/login'),
       headers: await _headers(json: true),
