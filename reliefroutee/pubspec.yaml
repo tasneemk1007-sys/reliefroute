@@ -38,13 +38,13 @@ dependencies:
   url_launcher: ^6.3.1
   firebase_core: ^5.1.0
   firebase_auth: ^7.0.1
-  firebase_auth_mocks: ^0.16.0
   firebase_storage: ^14.0.1
   file_picker: ^13.3.2
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
+  firebase_auth_mocks: ^0.16.0
 
   # The "flutter_lints" package below contains a set of recommended lints to
   # encourage good coding practices. The lint set provided by the package is
