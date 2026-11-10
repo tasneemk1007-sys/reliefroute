@@ -165,7 +165,9 @@ class _LoginState extends State<LoginScreen> {
       password: password,
     );
     final firebaseUser = credential.user;
-    if (firebaseUser == null) throw Exception('Firebase login failed.');
+    if (firebaseUser == null) {
+      throw Exception('We could not sign you in. Please try again.');
+    }
     return {
       'id': firebaseUser.uid,
       'name': firebaseUser.displayName ?? firebaseUser.email ?? email,
