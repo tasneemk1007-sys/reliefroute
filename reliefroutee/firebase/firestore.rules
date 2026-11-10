@@ -50,6 +50,12 @@ service cloud.firestore {
       allow read, create, update, delete: if owns(uid);
     }
 
+    match /users/{uid}/prescriptions/{prescriptionId} {
+      allow read: if owns(uid);
+      allow create: if owns(uid) && request.resource.data.userId == uid;
+      allow update, delete: if false;
+    }
+
     match /orders/{orderId} {
       allow read: if signedIn() && resource.data.user_id == request.auth.uid;
       allow write: if false; // Create/update through a trusted backend

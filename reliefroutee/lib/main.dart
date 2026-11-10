@@ -997,6 +997,12 @@ class _UploadPrescriptionState extends State<UploadPrescriptionScreen> {
         await file.readAsBytes(),
         SettableMetadata(contentType: file.extension),
       );
+      await PatientDataService().addPrescriptionMetadata(
+        fileName: file.name,
+        storagePath: path,
+      );
+      if (!mounted) return;
+      setState(() => selected = null);
       if (mounted) showMessage(context, 'Prescription uploaded for review.');
     } on FirebaseException catch (e) {
       if (mounted) showMessage(context, e.message ?? 'Upload failed.');

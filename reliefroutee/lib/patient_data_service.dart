@@ -76,4 +76,15 @@ class PatientDataService {
     'status': 'cancelled',
     'updatedAt': FieldValue.serverTimestamp(),
   });
+
+  Future<void> addPrescriptionMetadata({
+    required String fileName,
+    required String storagePath,
+  }) => profile.collection('prescriptions').add({
+    'userId': uid,
+    'fileName': fileName,
+    'storagePath': storagePath,
+    'status': 'pending',
+    'createdAt': FieldValue.serverTimestamp(),
+  });
 }
