@@ -9,6 +9,7 @@ import 'package:file_picker/file_picker.dart';
 
 import 'firebase_options.dart';
 import 'patient_screens.dart';
+import 'patient_data_service.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -207,6 +208,17 @@ class _LoginState extends State<LoginScreen> {
         email: user.text.trim(),
         password: password.text,
       );
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) {
+        throw FirebaseAuthException(
+          code: 'registration-failed',
+          message: 'The account could not be created.',
+        );
+      }
+      await PatientDataService(auth: auth).saveProfile({
+        'email': firebaseUser.email ?? user.text.trim(),
+        'role': 'patient',
+      });
       await credential.user?.sendEmailVerification();
       if (mounted) {
         showMessage(
@@ -216,6 +228,14 @@ class _LoginState extends State<LoginScreen> {
       }
     } on FirebaseAuthException catch (e) {
       if (mounted) showMessage(context, _firebaseMessage(e, registering: true));
+    } on FirebaseException catch (e) {
+      if (mounted) {
+        showMessage(
+          context,
+          e.message ??
+              'Account created, but the patient profile could not be saved.',
+        );
+      }
     } finally {
       if (mounted) setState(() => busy = false);
     }
