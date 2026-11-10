@@ -8,9 +8,8 @@ the repository.
 
 1. Install Java 21+ and Maven 3.9+.
 2. Ask the database owner for Firebase Console access and generate a service
-   account key.
-3. Rename the key to `firebase-service-account.json` and place it in this folder's
-   `src/main/resources/` directory.
+   account key. Keep it outside this repository.
+3. Set `GOOGLE_APPLICATION_CREDENTIALS` to the JSON file's absolute path.
 4. From this folder run `mvn spring-boot:run`.
 5. Check `http://localhost:8080/api/firebase-check`.
 
