@@ -46,4 +46,26 @@ void main() {
     expect(find.text('Welcome back, Test Patient!'), findsOneWidget);
     expect(find.text('Quick actions'), findsOneWidget);
   });
+
+  testWidgets('registration requires the patient account fields', (
+    tester,
+  ) async {
+    final auth = MockFirebaseAuth();
+    await tester.pumpWidget(ReliefRouteApp(auth: auth));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Create an account'));
+    await tester.tap(find.text('Create an account'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create your account'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Username'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'First name'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Surname'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Email address'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextFormField, 'Confirm password'),
+      findsOneWidget,
+    );
+  });
 }

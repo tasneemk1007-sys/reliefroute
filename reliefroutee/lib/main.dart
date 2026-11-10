@@ -193,54 +193,6 @@ class _LoginState extends State<LoginScreen> {
     }
   }
 
-  Future<void> _register() async {
-    if (demoMode) {
-      showMessage(
-        context,
-        'Registration is available when demo mode is disabled.',
-      );
-      return;
-    }
-    if (busy || !formKey.currentState!.validate()) return;
-    setState(() => busy = true);
-    try {
-      final credential = await auth.createUserWithEmailAndPassword(
-        email: user.text.trim(),
-        password: password.text,
-      );
-      final firebaseUser = credential.user;
-      if (firebaseUser == null) {
-        throw FirebaseAuthException(
-          code: 'registration-failed',
-          message: 'The account could not be created.',
-        );
-      }
-      await PatientDataService(auth: auth).saveProfile({
-        'email': firebaseUser.email ?? user.text.trim(),
-        'role': 'patient',
-      });
-      await credential.user?.sendEmailVerification();
-      if (mounted) {
-        showMessage(
-          context,
-          'Account created. Verify your email before signing in.',
-        );
-      }
-    } on FirebaseAuthException catch (e) {
-      if (mounted) showMessage(context, _firebaseMessage(e, registering: true));
-    } on FirebaseException catch (e) {
-      if (mounted) {
-        showMessage(
-          context,
-          e.message ??
-              'Account created, but the patient profile could not be saved.',
-        );
-      }
-    } finally {
-      if (mounted) setState(() => busy = false);
-    }
-  }
-
   @override
   void dispose() {
     user.dispose();
@@ -364,7 +316,12 @@ class _LoginState extends State<LoginScreen> {
                   ),
                   const SizedBox(height: 10),
                   OutlinedButton(
-                    onPressed: _register,
+                    onPressed: () => Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (_) => RegistrationScreen(auth: widget.auth),
+                      ),
+                    ),
                     child: const Text('Create an account'),
                   ),
                   const SizedBox(height: 16),
@@ -374,6 +331,192 @@ class _LoginState extends State<LoginScreen> {
                   ),
                 ],
               ),
+            ),
+          ),
+        ),
+      ),
+    ),
+  );
+}
+
+class RegistrationScreen extends StatefulWidget {
+  const RegistrationScreen({super.key, this.auth});
+
+  final FirebaseAuth? auth;
+
+  @override
+  State<RegistrationScreen> createState() => _RegistrationState();
+}
+
+class _RegistrationState extends State<RegistrationScreen> {
+  final formKey = GlobalKey<FormState>();
+  final username = TextEditingController();
+  final firstName = TextEditingController();
+  final surname = TextEditingController();
+  final email = TextEditingController();
+  final password = TextEditingController();
+  final confirmPassword = TextEditingController();
+  bool hidden = true;
+  bool busy = false;
+
+  FirebaseAuth get auth => widget.auth ?? FirebaseAuth.instance;
+
+  String? requiredValue(String? value, String label) =>
+      value == null || value.trim().isEmpty ? '$label is required.' : null;
+
+  String? validEmail(String? value) {
+    final valueError = requiredValue(value, 'Email address');
+    if (valueError != null) return valueError;
+    return RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(value!.trim())
+        ? null
+        : 'Please enter a valid email address.';
+  }
+
+  String? validPassword(String? value) => value == null || value.length < 6
+      ? 'Password must be at least 6 characters.'
+      : null;
+
+  Future<void> register() async {
+    if (busy || !formKey.currentState!.validate()) return;
+    setState(() => busy = true);
+    try {
+      final credential = await auth.createUserWithEmailAndPassword(
+        email: email.text.trim(),
+        password: password.text,
+      );
+      final firebaseUser = credential.user;
+      if (firebaseUser == null) throw StateError('Account creation failed.');
+      final fullName = '${firstName.text.trim()} ${surname.text.trim()}';
+      await firebaseUser.updateDisplayName(fullName);
+      await PatientDataService(auth: auth).saveProfile({
+        'username': username.text.trim(),
+        'firstName': firstName.text.trim(),
+        'surname': surname.text.trim(),
+        'fullName': fullName,
+        'email': firebaseUser.email ?? email.text.trim(),
+        'role': 'patient',
+      });
+      await firebaseUser.sendEmailVerification();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Account created. Verify your email before signing in.',
+          ),
+        ),
+      );
+      Navigator.pop(context);
+    } on FirebaseAuthException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(error.message ?? 'Registration failed.')),
+        );
+      }
+    } on FirebaseException catch (error) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              error.message ?? 'The patient profile could not be saved.',
+            ),
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => busy = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    username.dispose();
+    firstName.dispose();
+    surname.dispose();
+    email.dispose();
+    password.dispose();
+    confirmPassword.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Create your account')),
+    body: SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(26),
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 480),
+          child: Form(
+            key: formKey,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                const Text(
+                  'Join ReliefRoute',
+                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 8),
+                const Text(
+                  'Create your patient account to manage your healthcare.',
+                ),
+                const SizedBox(height: 24),
+                TextFormField(
+                  controller: username,
+                  decoration: const InputDecoration(labelText: 'Username'),
+                  validator: (v) => requiredValue(v, 'Username'),
+                  autocorrect: false,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: firstName,
+                  decoration: const InputDecoration(labelText: 'First name'),
+                  validator: (v) => requiredValue(v, 'First name'),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: surname,
+                  decoration: const InputDecoration(labelText: 'Surname'),
+                  validator: (v) => requiredValue(v, 'Surname'),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Email address'),
+                  validator: validEmail,
+                  autocorrect: false,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: password,
+                  obscureText: hidden,
+                  decoration: InputDecoration(
+                    labelText: 'Password',
+                    suffixIcon: IconButton(
+                      onPressed: () => setState(() => hidden = !hidden),
+                      icon: Icon(
+                        hidden ? Icons.visibility : Icons.visibility_off,
+                      ),
+                    ),
+                  ),
+                  validator: validPassword,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: confirmPassword,
+                  obscureText: hidden,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirm password',
+                  ),
+                  validator: (v) =>
+                      v != password.text ? 'Passwords do not match.' : null,
+                ),
+                const SizedBox(height: 24),
+                FilledButton(
+                  onPressed: busy ? null : register,
+                  child: Text(busy ? 'Creating account...' : 'Create account'),
+                ),
+              ],
             ),
           ),
         ),
