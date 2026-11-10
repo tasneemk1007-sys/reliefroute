@@ -5,8 +5,26 @@ service cloud.firestore {
     function owns(uid) { return signedIn() && request.auth.uid == uid; }
 
     match /users/{uid} {
-      allow read, create, update: if owns(uid);
+      allow read: if owns(uid);
+      allow create: if owns(uid) && request.resource.data.uid == uid;
+      allow update: if owns(uid) && request.resource.data.uid == uid;
       allow delete: if false;
+    }
+
+    match /medications/{medicationId} {
+      allow read: if owns(resource.data.userId);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if owns(resource.data.userId)
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if owns(resource.data.userId);
+    }
+
+    match /appointments/{appointmentId} {
+      allow read: if owns(resource.data.userId);
+      allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
+      allow update: if owns(resource.data.userId)
+        && request.resource.data.userId == request.auth.uid;
+      allow delete: if owns(resource.data.userId);
     }
 
     match /users/{uid}/notifications/{notificationId} {

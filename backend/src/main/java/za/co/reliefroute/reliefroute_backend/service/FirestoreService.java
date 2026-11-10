@@ -22,7 +22,7 @@ public class FirestoreService {
 
     // Only these collections can be reached through the API.
     private static final Set<String> ALLOWED = Set.of(
-            "medications", "pharmacies", "users", "orders", "order_items",
+            "medications", "appointments", "pharmacies", "users", "orders", "order_items",
             "prescriptions", "deliveries", "drivers", "refill_reminders");
 
     // Your medications collection currently has a leading space in its name (" medications").

@@ -8,6 +8,7 @@ import 'package:firebase_storage/firebase_storage.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'firebase_options.dart';
+import 'patient_screens.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -728,6 +729,18 @@ class Dashboard extends StatelessWidget {
           Icons.local_hospital_outlined,
           const DoctorDirectoryScreen(),
         ),
+        _ServiceTile(
+          'My medications',
+          'Manage your current medicines and dosage instructions',
+          Icons.medication_outlined,
+          const MedicationsScreen(),
+        ),
+        _ServiceTile(
+          'Appointments',
+          'Request and manage your healthcare appointments',
+          Icons.calendar_month_outlined,
+          const AppointmentsScreen(),
+        ),
       ],
     ),
     bottomNavigationBar: NavigationBar(
@@ -749,9 +762,9 @@ class Dashboard extends StatelessWidget {
             MaterialPageRoute(builder: (_) => const OrderTrackingScreen()),
           );
         } else if (index == 4) {
-          showMessage(
+          Navigator.push(
             context,
-            'Profile settings are available in the next release.',
+            MaterialPageRoute(builder: (_) => const PatientProfileScreen()),
           );
         }
       },
