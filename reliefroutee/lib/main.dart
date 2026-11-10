@@ -1027,12 +1027,12 @@ class _UploadPrescriptionState extends State<UploadPrescriptionScreen> {
         ),
         const SizedBox(height: 8),
         const Text(
-          'Upload your prescription',
+          'Prescription uploads are coming soon',
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 8),
         Text(
-          'Send it securely so our pharmacy team can review it before your order is confirmed.',
+          'Secure prescription file uploads are temporarily unavailable while storage is being configured.',
           style: TextStyle(color: Colors.grey.shade700),
         ),
         const SizedBox(height: 28),
@@ -1052,31 +1052,25 @@ class _UploadPrescriptionState extends State<UploadPrescriptionScreen> {
               ),
               const SizedBox(height: 14),
               const Text(
-                'Add prescription file',
+                'Coming soon',
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 6),
               Text(
-                'PDF, JPG or PNG up to 5 MB',
+                'File uploads will be enabled in a future release.',
                 style: TextStyle(color: Colors.grey.shade600),
               ),
               const SizedBox(height: 18),
-              FilledButton(
-                onPressed: busy ? null : chooseFile,
-                child: Text(selected?.name ?? 'Choose a file'),
-              ),
+              FilledButton(onPressed: null, child: const Text('Coming soon')),
             ],
           ),
         ),
         const SizedBox(height: 16),
         const DemoNote(
-          'Your information stays private. A pharmacist can access your prescription only to review your order.',
+          'You can still manage medicines and appointments while prescription uploads are unavailable.',
         ),
         const SizedBox(height: 16),
-        FilledButton(
-          onPressed: busy ? null : upload,
-          child: Text(busy ? 'Uploading...' : 'Continue'),
-        ),
+        FilledButton(onPressed: null, child: const Text('Uploads unavailable')),
       ],
     ),
   );
