@@ -18,6 +18,7 @@ import za.co.reliefroute.reliefroute_backend.service.MedicineJdbcService;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * One set of endpoints for every collection:
@@ -32,6 +33,8 @@ import java.util.Map;
 @RestController
 @RequestMapping("/api")
 public class FirestoreCrudController {
+
+    private static final Set<String> GENERIC_ADMIN_COLLECTIONS = Set.of("medications");
 
     private final FirestoreService db;
     private final ImageService images;
@@ -84,7 +87,7 @@ public class FirestoreCrudController {
     public Map<String, Object> create(@PathVariable String collection,
                                       @RequestBody Map<String, Object> body,
                                       HttpServletRequest request) throws Exception {
-        requireAdmin(request);
+        requireAdmin(collection, request);
         return db.create(collection, body);
     }
 
@@ -92,7 +95,7 @@ public class FirestoreCrudController {
     public Map<String, Object> update(@PathVariable String collection, @PathVariable String id,
                                       @RequestBody Map<String, Object> body,
                                       HttpServletRequest request) throws Exception {
-        requireAdmin(request);
+        requireAdmin(collection, request);
         if (!db.update(collection, id, body)) {
             throw notFound(collection + "/" + id + " not found");
         }
@@ -104,7 +107,10 @@ public class FirestoreCrudController {
         throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Generic collection deletes are disabled");
     }
 
-    private void requireAdmin(HttpServletRequest request) {
+    private void requireAdmin(String collection, HttpServletRequest request) {
+        if (!GENERIC_ADMIN_COLLECTIONS.contains(collection)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Collection is not available through this API");
+        }
         if (!isAdmin(request)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Administrator role required");
         }
