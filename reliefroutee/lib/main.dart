@@ -17,12 +17,18 @@ const demoMode = bool.fromEnvironment('RELIEFROUTE_DEMO', defaultValue: false);
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  if (Firebase.apps.isEmpty) {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  }
   runApp(const ReliefRouteApp());
 }
 
 class ReliefRouteApp extends StatelessWidget {
-  const ReliefRouteApp({super.key});
+  const ReliefRouteApp({super.key, this.auth});
+
+  final FirebaseAuth? auth;
   @override
   Widget build(BuildContext context) => MaterialApp(
     debugShowCheckedModeBanner: false,
@@ -73,29 +79,33 @@ class ReliefRouteApp extends StatelessWidget {
         ),
       ),
     ),
-    home: demoMode ? const LoginScreen() : const AuthGate(),
+    home: demoMode ? LoginScreen(auth: auth) : AuthGate(auth: auth),
   );
 }
 
 class AuthGate extends StatelessWidget {
-  const AuthGate({super.key});
+  const AuthGate({super.key, this.auth});
+
+  final FirebaseAuth? auth;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<User?>(
-    stream: FirebaseAuth.instance.authStateChanges(),
+    stream: (auth ?? FirebaseAuth.instance).authStateChanges(),
     builder: (context, snapshot) {
       if (snapshot.connectionState == ConnectionState.waiting) {
         return const Scaffold(body: Center(child: CircularProgressIndicator()));
       }
       final user = snapshot.data;
-      if (user == null) return const LoginScreen();
+      if (user == null) return LoginScreen(auth: auth);
       return Dashboard(name: user.displayName ?? user.email ?? 'Patient');
     },
   );
 }
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  const LoginScreen({super.key, this.auth});
+
+  final FirebaseAuth? auth;
   @override
   State<LoginScreen> createState() => _LoginState();
 }
@@ -108,9 +118,9 @@ class _LoginState extends State<LoginScreen> {
   bool busy = false;
   final api = const ApiService();
 
-  static final _emailPattern = RegExp(
-    r'^[^\s@]+@[^\s@]+\.[^\s@]+$',
-  );
+  FirebaseAuth get auth => widget.auth ?? FirebaseAuth.instance;
+
+  static final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 
   String? _validateEmail(String? value) {
     final email = value?.trim() ?? '';
@@ -120,7 +130,10 @@ class _LoginState extends State<LoginScreen> {
     return null;
   }
 
-  String _firebaseMessage(FirebaseAuthException error, {bool registering = false}) {
+  String _firebaseMessage(
+    FirebaseAuthException error, {
+    bool registering = false,
+  }) {
     switch (error.code) {
       case 'invalid-email':
         return 'Please enter a valid email address.';
@@ -149,7 +162,7 @@ class _LoginState extends State<LoginScreen> {
     String email,
     String password,
   ) async {
-    final credential = await FirebaseAuth.instance.signInWithEmailAndPassword(
+    final credential = await auth.signInWithEmailAndPassword(
       email: email.trim(),
       password: password,
     );
@@ -171,9 +184,7 @@ class _LoginState extends State<LoginScreen> {
       return;
     }
     try {
-      await FirebaseAuth.instance.sendPasswordResetEmail(
-        email: user.text.trim(),
-      );
+      await auth.sendPasswordResetEmail(email: user.text.trim());
       if (mounted) showMessage(context, 'Password reset email sent.');
     } on FirebaseAuthException catch (e) {
       if (mounted) showMessage(context, _firebaseMessage(e));
@@ -191,11 +202,10 @@ class _LoginState extends State<LoginScreen> {
     if (busy || !formKey.currentState!.validate()) return;
     setState(() => busy = true);
     try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(
-            email: user.text.trim(),
-            password: password.text,
-          );
+      final credential = await auth.createUserWithEmailAndPassword(
+        email: user.text.trim(),
+        password: password.text,
+      );
       await credential.user?.sendEmailVerification();
       if (mounted) {
         showMessage(
@@ -230,117 +240,124 @@ class _LoginState extends State<LoginScreen> {
             26,
             26 + MediaQuery.viewInsetsOf(context).bottom,
           ),
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 480),
-          child: Form(
-            key: formKey,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                Image.asset(
-                  'assets/reliefroute_brand_logo.png',
-                  height: 170,
-                  fit: BoxFit.contain,
-                  semanticLabel: 'ReliefRoute — Healthcare, closer to you',
-                ),
-                const SizedBox(height: 40),
-                const Text(
-                  'Welcome to ReliefRoute',
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-                const Text('Sign in to manage your medicines and orders.'),
-                const SizedBox(height: 24),
-                TextFormField(
-                  controller: user,
-                  keyboardType: TextInputType.emailAddress,
-                  textInputAction: TextInputAction.next,
-                  autocorrect: false,
-                  decoration: const InputDecoration(labelText: 'Email address'),
-                  validator: _validateEmail,
-                ),
-                const SizedBox(height: 14),
-                TextFormField(
-                  controller: password,
-                  obscureText: hidden,
-                  decoration: InputDecoration(
-                    labelText: 'Password',
-                    suffixIcon: IconButton(
-                      onPressed: () => setState(() => hidden = !hidden),
-                      icon: Icon(
-                        hidden ? Icons.visibility : Icons.visibility_off,
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 480),
+            child: Form(
+              key: formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Image.asset(
+                    'assets/reliefroute_brand_logo.png',
+                    height: 170,
+                    fit: BoxFit.contain,
+                    semanticLabel: 'ReliefRoute — Healthcare, closer to you',
+                  ),
+                  const SizedBox(height: 40),
+                  const Text(
+                    'Welcome to ReliefRoute',
+                    style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
+                  ),
+                  const SizedBox(height: 8),
+                  const Text('Sign in to manage your medicines and orders.'),
+                  const SizedBox(height: 24),
+                  TextFormField(
+                    controller: user,
+                    keyboardType: TextInputType.emailAddress,
+                    textInputAction: TextInputAction.next,
+                    autocorrect: false,
+                    decoration: const InputDecoration(
+                      labelText: 'Email address',
+                    ),
+                    validator: _validateEmail,
+                  ),
+                  const SizedBox(height: 14),
+                  TextFormField(
+                    controller: password,
+                    obscureText: hidden,
+                    decoration: InputDecoration(
+                      labelText: 'Password',
+                      suffixIcon: IconButton(
+                        onPressed: () => setState(() => hidden = !hidden),
+                        icon: Icon(
+                          hidden ? Icons.visibility : Icons.visibility_off,
+                        ),
                       ),
                     ),
+                    textInputAction: TextInputAction.done,
+                    validator: (v) => v == null || v.length < 6
+                        ? 'Enter at least 6 characters.'
+                        : null,
                   ),
-                  textInputAction: TextInputAction.done,
-                  validator: (v) => v == null || v.length < 6
-                      ? 'Enter at least 6 characters.'
-                      : null,
-                ),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    onPressed: _resetPassword,
-                    child: const Text('Forgot password?'),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton(
+                      onPressed: _resetPassword,
+                      child: const Text('Forgot password?'),
+                    ),
                   ),
-                ),
-                FilledButton(
-                  onPressed: busy
-                      ? null
-                      : () async {
-                          if (formKey.currentState!.validate()) {
-                            setState(() => busy = true);
-                            try {
-                              final account = demoMode
-                                  ? await api.login(user.text, password.text)
-                                  : await _signInWithFirebase(
-                                      user.text,
-                                      password.text,
-                                    );
-                              if (!mounted) return;
-                              Navigator.pushReplacement(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => Dashboard(
-                                    name:
-                                        account['name'] as String? ?? user.text,
+                  FilledButton(
+                    onPressed: busy
+                        ? null
+                        : () async {
+                            if (formKey.currentState!.validate()) {
+                              setState(() => busy = true);
+                              try {
+                                final account = demoMode
+                                    ? await api.login(user.text, password.text)
+                                    : await _signInWithFirebase(
+                                        user.text,
+                                        password.text,
+                                      );
+                                if (!context.mounted) return;
+                                final navigator = Navigator.of(context);
+                                navigator.pushReplacement(
+                                  MaterialPageRoute(
+                                    builder: (_) => Dashboard(
+                                      name:
+                                          account['name'] as String? ??
+                                          user.text,
+                                      auth: widget.auth,
+                                    ),
                                   ),
-                                ),
-                              );
-                            } on FirebaseAuthException catch (e) {
-                              if (context.mounted) {
-                                showMessage(context, _firebaseMessage(e));
-                              }
-                            } catch (_) {
-                              if (context.mounted) {
-                                showMessage(context, 'We could not sign you in. Please try again.');
-                              }
-                            } finally {
-                              if (mounted) {
-                                setState(() => busy = false);
+                                );
+                              } on FirebaseAuthException catch (e) {
+                                if (context.mounted) {
+                                  showMessage(context, _firebaseMessage(e));
+                                }
+                              } catch (_) {
+                                if (context.mounted) {
+                                  showMessage(
+                                    context,
+                                    'We could not sign you in. Please try again.',
+                                  );
+                                }
+                              } finally {
+                                if (mounted) {
+                                  setState(() => busy = false);
+                                }
                               }
                             }
-                          }
-                        },
-                  child: Text(busy ? 'Signing in...' : 'Log in'),
-                ),
-                const SizedBox(height: 10),
-                OutlinedButton(
-                  onPressed: _register,
-                  child: const Text('Create an account'),
-                ),
-                const SizedBox(height: 16),
-                const Text(
-                  'Your password is protected and is never displayed.',
-                  textAlign: TextAlign.center,
-                ),
-              ],
+                          },
+                    child: Text(busy ? 'Signing in...' : 'Log in'),
+                  ),
+                  const SizedBox(height: 10),
+                  OutlinedButton(
+                    onPressed: _register,
+                    child: const Text('Create an account'),
+                  ),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'Your password is protected and is never displayed.',
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ),
       ),
-        ),
-      ),
+    ),
   );
 }
 
@@ -430,7 +447,8 @@ class BrandLogo extends StatelessWidget {
 
 class Dashboard extends StatelessWidget {
   final String name;
-  const Dashboard({super.key, required this.name});
+  final FirebaseAuth? auth;
+  const Dashboard({super.key, required this.name, this.auth});
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -451,7 +469,7 @@ class Dashboard extends StatelessWidget {
         IconButton(
           tooltip: 'Sign out',
           onPressed: () async {
-            if (!demoMode) await FirebaseAuth.instance.signOut();
+            if (!demoMode) await (auth ?? FirebaseAuth.instance).signOut();
             if (context.mounted) {
               Navigator.pushAndRemoveUntil(
                 context,
@@ -783,6 +801,7 @@ class _UploadPrescriptionState extends State<UploadPrescriptionScreen> {
     if (!mounted || result.isEmpty) return;
     final file = result.single;
     final size = await file.length();
+    if (!mounted) return;
     if (size != null && size > 5 * 1024 * 1024) {
       showMessage(context, 'The file must be 5 MB or smaller.');
       return;
