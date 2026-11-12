@@ -1,8 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'patient_data_service.dart';
+
+final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
+final _phonePattern = RegExp(r'^\d{7,15}$');
+final _namePattern = RegExp(r"^[A-Za-z][A-Za-z '\-]*$");
+
+String? _validEmail(String? value) => value != null && _emailPattern.hasMatch(value.trim()) ? null : 'Please enter a valid email address.';
+String? _validPhone(String? value) => value != null && _phonePattern.hasMatch(value.trim()) ? null : 'Phone number must contain 7-15 digits only.';
+String? _validName(String? value) => value != null && _namePattern.hasMatch(value.trim()) ? null : 'This field must contain letters only.';
+String? _validMedicationName(String? value) => _validName(value) == null ? null : 'Medication name must contain letters only.';
 
 class PatientProfileScreen extends StatefulWidget {
   const PatientProfileScreen({super.key});
@@ -11,6 +21,7 @@ class PatientProfileScreen extends StatefulWidget {
 }
 
 class _PatientProfileScreenState extends State<PatientProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
   final firstName = TextEditingController();
   final surname = TextEditingController();
   final username = TextEditingController();
@@ -52,6 +63,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
   }
 
   Future<void> save() async {
+    if (!_formKey.currentState!.validate()) return;
     if (firstName.text.trim().isEmpty || surname.text.trim().isEmpty) return;
     setState(() => saving = true);
     try {
@@ -88,21 +100,25 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
     appBar: AppBar(title: const Text('My profile')),
     body: loading
         ? const Center(child: CircularProgressIndicator())
-        : ListView(
+        : Form(
+            key: _formKey,
+            child: ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              TextFormField(controller: firstName, decoration: const InputDecoration(labelText: 'First name')),
+              TextFormField(controller: firstName, decoration: const InputDecoration(labelText: 'First name'), validator: _validName),
               const SizedBox(height: 14),
-              TextFormField(controller: surname, decoration: const InputDecoration(labelText: 'Surname')),
+              TextFormField(controller: surname, decoration: const InputDecoration(labelText: 'Surname'), validator: _validName),
               const SizedBox(height: 14),
               TextFormField(controller: username, decoration: const InputDecoration(labelText: 'Username')),
               const SizedBox(height: 14),
-              TextFormField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address')),
+              TextFormField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address'), validator: _validEmail),
               const SizedBox(height: 14),
               TextFormField(
                 controller: phone,
                 keyboardType: TextInputType.phone,
+                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
                 decoration: const InputDecoration(labelText: 'Phone number'),
+                validator: _validPhone,
               ),
               const SizedBox(height: 14),
               TextFormField(
@@ -117,6 +133,7 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
               ),
             ],
           ),
+        ),
   );
 }
 
@@ -139,8 +156,7 @@ class MedicationsScreen extends StatelessWidget {
               TextFormField(
                 controller: medicine,
                 decoration: const InputDecoration(labelText: 'Medication name'),
-                validator: (v) =>
-                    v == null || v.trim().isEmpty ? 'Required' : null,
+                validator: _validMedicationName,
               ),
               TextFormField(
                 controller: dosage,

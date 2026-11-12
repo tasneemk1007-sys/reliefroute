@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 class PatientDataService {
+  static final _medicationNamePattern = RegExp(r"^[A-Za-z][A-Za-z '\-]*$");
   PatientDataService({FirebaseFirestore? firestore, FirebaseAuth? auth})
     : _firestore = firestore ?? FirebaseFirestore.instance,
       _auth = auth ?? FirebaseAuth.instance;
@@ -38,18 +39,33 @@ class PatientDataService {
 
   Future<DocumentReference<Map<String, dynamic>>> addMedication(
     Map<String, dynamic> values,
-  ) => medications.add({
+  ) {
+    final name = (values['name'] as String? ?? '').trim();
+    if (!_medicationNamePattern.hasMatch(name)) {
+      throw ArgumentError('Medication name must contain letters only.');
+    }
+    return medications.add({
     ...values,
+    'name': name,
     'userId': uid,
     'createdAt': FieldValue.serverTimestamp(),
-  });
+    });
+  }
 
-  Future<void> updateMedication(String id, Map<String, dynamic> values) =>
-      medications.doc(id).update({
-        ...values,
-        'userId': uid,
-        'updatedAt': FieldValue.serverTimestamp(),
-      });
+  Future<void> updateMedication(String id, Map<String, dynamic> values) {
+    if (values.containsKey('name')) {
+      final name = (values['name'] as String? ?? '').trim();
+      if (!_medicationNamePattern.hasMatch(name)) {
+        throw ArgumentError('Medication name must contain letters only.');
+      }
+      values = {...values, 'name': name};
+    }
+    return medications.doc(id).update({
+      ...values,
+      'userId': uid,
+      'updatedAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   Future<void> deleteMedication(String id) => medications.doc(id).delete();
 
