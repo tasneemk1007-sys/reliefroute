@@ -2,9 +2,11 @@
 
 ## MySQL
 
-Run `mysql -u root -p < database/mysql/schema.sql` against a MySQL 8+ server.
-The schema stores catalogue, stock, orders, prescriptions and reminders. Passwords
-are intentionally not stored in MySQL; Firebase Authentication owns them.
+For a fresh database, `mysql/schema.sql` mirrors the Flyway migrations. Prefer
+letting the Spring Boot backend apply Flyway so the schema and seed versions stay
+in sync. Configure `DB_URL`, `DB_USERNAME`, and `DB_PASSWORD`;
+`backend/run-backend.ps1` prompts for these locally without writing the password
+to a file.
 
 ### Demo records and application integration
 
@@ -15,19 +17,17 @@ records are explicitly unverified/fictional. Demo medicines have no price or
 stock and cannot be ordered.
 
 The same schema and rows are included in the Spring Boot Flyway migration
-`backend/src/main/resources/db/migration/V2__demo_seed_data.sql`. The backend
-uses the MySQL datasource configured by `DB_URL`, `DB_USERNAME`, and
-`DB_PASSWORD` in `backend/src/main/resources/application.yml`. On startup,
+`backend/src/main/resources/db/migration/V3__demo_seed_data.sql`. On startup,
 Flyway creates/updates the schema and applies the demo seed. Do not configure
 Flutter to connect directly to MySQL; the authenticated API exposes the
 catalogue and `/api/directory/doctors` and `/api/directory/pharmacies`.
 
 ## Firebase
 
-Create a Firebase project, enable Email/Password Authentication and Firestore,
-then deploy `firebase/firestore.rules` and `firebase/firestore.indexes.json` with
-the Firebase CLI. Do not commit Firebase configuration files, service-account
-JSON, or database passwords.
+Use only the existing Firebase project `reliefroute4`. Enable Email/Password
+Authentication, Firestore, and Storage there, then deploy
+`firebase/firestore.rules` and `firebase/firestore.indexes.json` with the Firebase
+CLI. Do not commit service-account JSON or database passwords.
 
 The Flutter app should call a trusted backend for MySQL operations. A Flutter web
 client must never contain a MySQL password or connect directly to MySQL.

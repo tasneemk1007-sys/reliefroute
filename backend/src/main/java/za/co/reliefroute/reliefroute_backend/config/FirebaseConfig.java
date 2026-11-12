@@ -1,6 +1,7 @@
 package za.co.reliefroute.reliefroute_backend.config;
 
 import com.google.auth.oauth2.GoogleCredentials;
+import com.google.auth.oauth2.ServiceAccountCredentials;
 import com.google.cloud.firestore.Firestore;
 import com.google.cloud.storage.Bucket;
 import com.google.firebase.FirebaseApp;
@@ -10,7 +11,6 @@ import com.google.firebase.cloud.StorageClient;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.core.io.ClassPathResource;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -32,7 +32,9 @@ public class FirebaseConfig {
     @Bean
     public FirebaseApp firebaseApp() throws IOException {
         if (!FirebaseApp.getApps().isEmpty()) {
-            return FirebaseApp.getInstance();
+            FirebaseApp existing = FirebaseApp.getInstance();
+            verifyProject(existing.getOptions().getProjectId());
+            return existing;
         }
         FirebaseOptions.Builder options = FirebaseOptions.builder()
                 .setCredentials(credentials());
@@ -52,19 +54,37 @@ public class FirebaseConfig {
     private GoogleCredentials credentials() throws IOException {
         if (credentialsFile != null && !credentialsFile.isBlank()) {
             Path path = Path.of(credentialsFile);
-            if (Files.exists(path)) {
-                try (InputStream key = Files.newInputStream(path)) {
-                    return GoogleCredentials.fromStream(key);
-                }
+            if (!Files.isRegularFile(path)) {
+                throw new IOException("FIREBASE_SERVICE_ACCOUNT must point to a readable JSON file outside the repository");
             }
-            ClassPathResource resource = new ClassPathResource(credentialsFile);
-            if (resource.exists()) {
-                try (InputStream key = resource.getInputStream()) {
-                    return GoogleCredentials.fromStream(key);
-                }
+            try (InputStream key = Files.newInputStream(path)) {
+                GoogleCredentials credentials = GoogleCredentials.fromStream(key);
+                verifyCredentialsProject(credentials);
+                return credentials;
             }
         }
-        return GoogleCredentials.getApplicationDefault();
+        GoogleCredentials credentials = GoogleCredentials.getApplicationDefault();
+        verifyCredentialsProject(credentials);
+        return credentials;
+    }
+
+    private void verifyCredentialsProject(GoogleCredentials credentials) throws IOException {
+        if (credentials instanceof ServiceAccountCredentials serviceAccount) {
+            verifyProject(serviceAccount.getProjectId());
+        }
+    }
+
+    private void verifyProject(String credentialProjectId) throws IOException {
+        if (projectId == null || projectId.isBlank()) {
+            throw new IOException("FIREBASE_PROJECT_ID must be set to reliefroute4");
+        }
+        if (credentialProjectId == null || credentialProjectId.isBlank()) {
+            throw new IOException("Firebase service-account credentials do not specify a project_id");
+        }
+        if (!projectId.equals(credentialProjectId)) {
+            throw new IOException("Firebase credentials belong to project " + credentialProjectId
+                    + "; expected " + projectId);
+        }
     }
 
     @Bean

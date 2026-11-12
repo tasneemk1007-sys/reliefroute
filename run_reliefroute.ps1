@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$project = Join-Path $PSScriptRoot 'reliefroutee'
+$project = $PSScriptRoot
 Set-Location $project
 
 Write-Host "Starting ReliefRoute from $project on $Device..." -ForegroundColor Cyan

@@ -1,59 +1,52 @@
-# RELIEFROUTE
+# ReliefRoute
 
-ReliefRoute is a cross-platform Flutter medication ordering and delivery
-platform for patients who may face pharmacy queues, repeated trips,
-transportation limitations, mobility barriers, age, chronic illness, or
-physical disability.
+ReliefRoute is a Flutter medication ordering and delivery application with a
+separate Spring Boot API. The official Flutter project is this repository root;
+the Java backend remains in `backend/`.
 
-## Technology
+## Flutter app
 
-- Frontend: Flutter and Dart
-- Backend: Java and Spring Boot
-- Database: MySQL for catalogue, providers and orders; Firestore for profiles,
-  carts and live delivery location
-- Authentication: Firebase Authentication
-- Storage: Firebase Storage
-- Maps: OpenStreetMap tiles with `flutter_map`
-- Currency: South African Rand (ZAR)
-
-## Run the Flutter app
-
-The configured Flutter application is in `reliefroutee`. Open
-`ReliefRoute.code-workspace` in VS Code, or run the root launcher:
+Run Flutter commands from the repository root:
 
 ```powershell
-.\run_reliefroute.ps1
-```
-
-Choose a device when needed. For Android, use the computer's LAN IP so the
-phone can reach the backend (replace the example address):
-
-```powershell
-.\run_reliefroute.ps1 -Device chrome
-.\run_reliefroute.ps1 -Device android -ApiBaseUrl http://192.168.1.10:8080/api
-```
-
-Do not run `flutter run` from the repository root; that selects the separate
-starter project and does not include the configured Web Firebase app.
-
-```bash
-cd reliefroutee
 flutter pub get
-flutter run
+flutter run -d chrome
 ```
 
-## Main features
+For an Android emulator, use the emulator's host-loopback address. For a
+physical phone, use the computer's LAN address:
 
-Patient features include medicine browsing, prescriptions, cart and checkout,
-order tracking, order history, reminders, and favourites. The planned staff
-areas cover pharmacist prescription review, driver delivery updates, inventory,
-user management, and reporting.
+```powershell
+flutter run -d android --dart-define=API_BASE_URL=http://10.0.2.2:8080/api
+flutter run -d android --dart-define=API_BASE_URL=http://192.168.1.10:8080/api
+```
 
-The current release is a student project using sample data in some screens.
-Firebase production setup requires the private service-account file described
-in `backend/README.md`; that file must never be committed.
+The optional PowerShell launcher is `./run_reliefroute.ps1`; it now runs from
+the repository root.
 
-## Brand colours
+## Verify Flutter
 
-Teal `#087F8C`, Navy `#123047`, Mint `#E5F6F2`, Canvas `#F6F8FA`, Ink `#1F2937`,
-and Muted `#64748B`.
+```powershell
+flutter analyze
+flutter test
+flutter build apk --debug
+```
+
+## Backend and database
+
+The Spring Boot API is independent and remains under `backend/`. See
+[`backend/README.md`](backend/README.md) for Java, MySQL, Firebase credentials,
+and run instructions. Flyway migrations are in
+`backend/src/main/resources/db/migration/`. The Workbench seed script is in
+[`database/mysql/ReliefRoute_Demo_Seed_Data.sql`](database/mysql/ReliefRoute_Demo_Seed_Data.sql).
+
+## Project structure
+
+- `lib/`, `test/`, `assets/`, `web/`, `android/`: the canonical Flutter app.
+- `firebase/`: Firebase rules, indexes, and Flutter configuration.
+- `database/`: MySQL schema and demo seed data.
+- `backend/`: independently runnable Spring Boot API and migrations.
+- `docs/`: design, integration, and deployment notes.
+
+The demo provider records are fictional, and demo medicines have no verified
+price or stock. They are not available for ordering.

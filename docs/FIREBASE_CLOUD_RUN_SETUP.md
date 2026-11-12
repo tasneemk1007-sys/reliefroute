@@ -1,13 +1,14 @@
 # Firebase and Cloud Run setup
 
-Create Cloud Firestore in Native mode and enable Firebase Storage in the same
-Google Cloud project. Create a `medications` collection. Medication documents
+Use Google/Firebase project `reliefroute4`. Create Cloud Firestore in Native
+mode and enable Firebase Storage in that project. Create a `medications` collection. Medication documents
 should contain `name`, `description`, `category`, `price`, `stock_qty`,
 `prescription_required`, `active`, and `pharmacy_id`.
 
-For local development, set `GOOGLE_APPLICATION_CREDENTIALS` to a private
-service-account JSON path, plus `FIREBASE_PROJECT_ID` and
-`FIREBASE_STORAGE_BUCKET`, then run `./mvnw.cmd spring-boot:run` from `backend`.
+For local development, use a `reliefroute4` service-account JSON path through
+`GOOGLE_APPLICATION_CREDENTIALS`, plus `FIREBASE_PROJECT_ID=reliefroute4` and
+`FIREBASE_STORAGE_BUCKET=reliefroute4.firebasestorage.app`, then run
+`./mvnw.cmd spring-boot:run` from `backend`.
 Cloud Run uses Application Default Credentials, so no JSON key belongs in the
 container or repository.
 
@@ -19,9 +20,9 @@ From `backend`, authenticate `gcloud`, select the Firebase project, enable
 Cloud Run, Artifact Registry, Cloud Build, Firestore, and Storage APIs, then
 build and deploy the included Dockerfile. A typical deployment uses:
 
-`gcloud builds submit --tag REGION-docker.pkg.dev/PROJECT/reliefroute/reliefroute-api:latest .`
+`gcloud builds submit --project reliefroute4 --tag REGION-docker.pkg.dev/reliefroute4/reliefroute/reliefroute-api:latest .`
 
-`gcloud run deploy reliefroute-api --image REGION-docker.pkg.dev/PROJECT/reliefroute/reliefroute-api:latest --region REGION --allow-unauthenticated --set-env-vars FIREBASE_PROJECT_ID=PROJECT,FIREBASE_STORAGE_BUCKET=BUCKET --port 8080`
+`gcloud run deploy reliefroute-api --project reliefroute4 --image REGION-docker.pkg.dev/reliefroute4/reliefroute/reliefroute-api:latest --region REGION --allow-unauthenticated --set-env-vars FIREBASE_PROJECT_ID=reliefroute4,FIREBASE_STORAGE_BUCKET=reliefroute4.firebasestorage.app --port 8080`
 
 Use a dedicated Cloud Run service account with only Firestore and Storage
 permissions. Build Flutter with the deployed API URL using

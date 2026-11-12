@@ -6,10 +6,10 @@ backend and a MySQL database script.
 
 ## Folders
 
-- `reliefroute/` - main Flutter application
+- `./` - main Flutter application (repository root)
 - `backend/` - Spring Boot REST API
-- `reliefroute/database/mysql/` - MySQL tables and sample medicines
-- `reliefroute/firebase/` - Firebase rules and indexes
+- `database/mysql/` - MySQL tables and sample medicines
+- `firebase/` - Firebase rules and indexes
 
 ## Main technologies
 

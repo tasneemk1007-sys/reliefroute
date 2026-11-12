@@ -40,6 +40,7 @@ app.*.symbols
 app.*.map.json
 
 # Android Studio will place build artifacts here
+/android/local.properties
 /android/app/debug
 /android/app/profile
 /android/app/release
@@ -47,12 +48,17 @@ app.*.map.json
 # Widget Preview related
 .widget_preview/
 # Firebase credentials
+.env
+.env.*
+!.env.example
 firebase-service-account.json
 **/firebase-service-account.json
+*service-account*.json
+*service_account*.json
 firebase-credentials/
 **/firebase-credentials/
 serviceAccountKey.json
 **/serviceAccountKey.json
 # Firebase Admin SDK downloads commonly use this filename pattern.
-**/*-firebase-adminsdk-*.json
+**/*firebase-adminsdk*.json
 backend/target/

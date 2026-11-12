@@ -1,30 +1,71 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-
+import 'package:flutter/material.dart';
+import 'package:firebase_auth_mocks/firebase_auth_mocks.dart';
 import 'package:reliefroute/main.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('shows the ReliefRoute welcome screen', (tester) async {
+    final auth = MockFirebaseAuth();
+    await tester.pumpWidget(ReliefRouteApp(auth: auth));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome to ReliefRoute'), findsOneWidget);
+    expect(find.text('Log in'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Email address'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
+  });
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
+  testWidgets('valid login opens the patient dashboard', (tester) async {
+    final auth = MockFirebaseAuth();
+    await tester.pumpWidget(ReliefRouteApp(auth: auth));
+    await tester.pumpAndSettle();
+    await tester.enterText(
+      find.widgetWithText(TextFormField, 'Email address'),
+      'demo@example.com',
+    );
+    await tester.enterText(find.byType(TextFormField).last, 'demo1234');
+    await tester.tap(find.text('Log in'));
+    await tester.pumpAndSettle();
+    expect(find.text('Welcome back, demo@example.com!'), findsOneWidget);
+    expect(find.text('Quick actions'), findsOneWidget);
+  });
 
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
-    await tester.pump();
+  testWidgets('AuthGate opens the dashboard for an authenticated user', (
+    tester,
+  ) async {
+    final auth = MockFirebaseAuth(
+      signedIn: true,
+      mockUser: MockUser(
+        uid: 'test-user',
+        email: 'patient@example.com',
+        displayName: 'Test Patient',
+      ),
+    );
+    await tester.pumpWidget(ReliefRouteApp(auth: auth));
+    await tester.pumpAndSettle();
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    expect(find.text('Welcome back, Test Patient!'), findsOneWidget);
+    expect(find.text('Quick actions'), findsOneWidget);
+  });
+
+  testWidgets('registration requires the patient account fields', (
+    tester,
+  ) async {
+    final auth = MockFirebaseAuth();
+    await tester.pumpWidget(ReliefRouteApp(auth: auth));
+    await tester.pumpAndSettle();
+    await tester.ensureVisible(find.text('Create an account'));
+    await tester.tap(find.text('Create an account'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Create your account'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Username'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'First name'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Surname'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Email address'), findsOneWidget);
+    expect(find.widgetWithText(TextFormField, 'Password'), findsOneWidget);
+    expect(
+      find.widgetWithText(TextFormField, 'Confirm password'),
+      findsOneWidget,
+    );
   });
 }

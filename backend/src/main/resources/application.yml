@@ -10,8 +10,8 @@ spring.flyway.enabled: ${FLYWAY_ENABLED:true}
 spring.jpa.open-in-view: false
 reliefroute.firebase.enabled: ${FIREBASE_ENABLED:true}
 reliefroute.firebase.project-id: ${FIREBASE_PROJECT_ID:reliefroute4}
-reliefroute.firebase.storage-bucket: ${FIREBASE_STORAGE_BUCKET:}
-reliefroute.firebase.storage-enabled: ${FIREBASE_STORAGE_ENABLED:false}
+reliefroute.firebase.storage-bucket: ${FIREBASE_STORAGE_BUCKET:reliefroute4.firebasestorage.app}
+reliefroute.firebase.storage-enabled: ${FIREBASE_STORAGE_ENABLED:true}
 # Leave empty to use Google Application Default Credentials, including
 # GOOGLE_APPLICATION_CREDENTIALS for local development and Cloud Run.
 reliefroute.firebase.service-account: ${FIREBASE_SERVICE_ACCOUNT:}
