@@ -27,9 +27,8 @@ public class OrderJdbcService {
         if (firebaseUid.isBlank() || address.isBlank() || !(raw instanceof List<?> items) || items.isEmpty()) {
             throw bad("user_id, address and a non-empty items list are required");
         }
-        Long userId = jdbc.queryForObject("SELECT id FROM users WHERE firebase_uid = ?", Long.class, firebaseUid);
-        if (userId == null) throw notFound("User is not registered");
-        Long addressId = createAddress(userId, address);
+        Integer userCount = jdbc.queryForObject("SELECT COUNT(*) FROM users WHERE firebase_uid = ?", Integer.class, firebaseUid);
+        if (userCount == null || userCount == 0) throw notFound("User is not registered");
         BigDecimal subtotal = BigDecimal.ZERO;
         List<Map<String, Object>> lines = new ArrayList<>();
         for (Object value : items) {
@@ -37,7 +36,12 @@ public class OrderJdbcService {
             String medicineId = text(item.get("medication_id"));
             int quantity = number(item.get("quantity"));
             if (medicineId.isBlank() || quantity <= 0) throw bad("Invalid medicine item");
-            Map<String, Object> medicine = jdbc.queryForMap("SELECT id,name,price,stock_quantity,prescription_required FROM medicines WHERE public_id=? AND active=TRUE FOR UPDATE", medicineId);
+            Map<String, Object> medicine;
+            try {
+                medicine = jdbc.queryForMap("SELECT id,name,price,stock_quantity,prescription_required FROM medicines WHERE public_id=? AND active=TRUE FOR UPDATE", medicineId);
+            } catch (org.springframework.dao.EmptyResultDataAccessException e) {
+                throw notFound("Medicine not found: " + medicineId);
+            }
             int stock = ((Number) medicine.get("stock_quantity")).intValue();
             if (stock < quantity) throw bad("Not enough stock for " + medicine.get("name"));
             BigDecimal price = new BigDecimal(String.valueOf(medicine.get("price")));
@@ -48,28 +52,24 @@ public class OrderJdbcService {
         BigDecimal delivery = new BigDecimal("35.00");
         BigDecimal total = subtotal.add(delivery);
         String reference = "RR-" + UUID.randomUUID().toString().substring(0, 8).toUpperCase();
-        jdbc.update("INSERT INTO orders(reference,user_id,address_id,subtotal,delivery_fee,total) VALUES(?,?,?,?,?,?)", reference, userId, addressId, subtotal, delivery, total);
+        jdbc.update("INSERT INTO orders(reference,firebase_uid,address,status,subtotal,delivery_fee,total) VALUES(?,?,?,?,?,?,?)", reference, firebaseUid, address, "placed", subtotal, delivery, total);
         Long orderId = jdbc.queryForObject("SELECT id FROM orders WHERE reference=?", Long.class, reference);
         for (Map<String, Object> line : lines) jdbc.update("INSERT INTO order_items(order_id,medicine_id,quantity,unit_price) VALUES(?,?,?,?)", orderId, line.get("medicine_id"), line.get("quantity"), line.get("unit_price"));
         return Map.of("id", orderId, "reference", reference, "status", "placed", "subtotal", subtotal, "delivery_fee", delivery, "total", total, "items", lines);
     }
 
     public List<Map<String, Object>> forUser(String firebaseUid) {
-        return jdbc.queryForList("SELECT o.reference,o.status,o.payment_status,o.subtotal,o.delivery_fee,o.total,o.created_at FROM orders o JOIN users u ON u.id=o.user_id WHERE u.firebase_uid=? ORDER BY o.created_at DESC", firebaseUid);
+        return jdbc.queryForList("SELECT o.reference,o.status,o.subtotal,o.delivery_fee,o.total,o.created_at FROM orders o WHERE o.firebase_uid=? ORDER BY o.created_at DESC", firebaseUid);
     }
 
     public Map<String, Object> tracking(String reference, String firebaseUid) {
         try {
-            return jdbc.queryForMap("SELECT o.reference,o.status,o.payment_status,o.subtotal,o.delivery_fee,o.total,o.created_at,o.updated_at FROM orders o JOIN users u ON u.id=o.user_id WHERE o.reference=? AND u.firebase_uid=?", reference, firebaseUid);
+            return jdbc.queryForMap("SELECT o.reference,o.status,o.subtotal,o.delivery_fee,o.total,o.created_at,o.updated_at FROM orders o WHERE o.reference=? AND o.firebase_uid=?", reference, firebaseUid);
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             throw notFound("Order not found");
         }
     }
 
-    private Long createAddress(Long userId, String value) {
-        jdbc.update("INSERT INTO addresses(user_id,label,address_line1,city,province,postal_code,is_default) VALUES(?,?,?,?,?,?,FALSE)", userId, "Order address", value, "", "", "");
-        return jdbc.queryForObject("SELECT LAST_INSERT_ID()", Long.class);
-    }
     private static String text(Object value) { return value == null ? "" : String.valueOf(value).trim(); }
     private static int number(Object value) { return value instanceof Number n ? n.intValue() : -1; }
     private static ResponseStatusException bad(String message) { return new ResponseStatusException(HttpStatus.BAD_REQUEST, message); }

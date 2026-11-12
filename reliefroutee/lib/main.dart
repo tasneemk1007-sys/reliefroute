@@ -1076,8 +1076,23 @@ class _UploadPrescriptionState extends State<UploadPrescriptionScreen> {
   );
 }
 
-class OrderTrackingScreen extends StatelessWidget {
+class OrderTrackingScreen extends StatefulWidget {
   const OrderTrackingScreen({super.key});
+  @override State<OrderTrackingScreen> createState() => _OrderTrackingState();
+}
+class _OrderTrackingState extends State<OrderTrackingScreen> {
+  final reference = TextEditingController();
+  final api = const ApiService();
+  Map<String, dynamic>? order;
+  bool loading = false;
+  Future<void> track() async {
+    if (reference.text.trim().isEmpty) return;
+    setState(() => loading = true);
+    try { final result = await api.getOrderTracking(reference.text.trim()); if (mounted) setState(() => order = result); }
+    catch (_) { if (mounted) showMessage(context, 'Order not found. Check the reference and try again.'); }
+    if (mounted) setState(() => loading = false);
+  }
+  @override void dispose() { reference.dispose(); super.dispose(); }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1086,7 +1101,7 @@ class OrderTrackingScreen extends StatelessWidget {
       padding: const EdgeInsets.all(20),
       children: [
         const Text(
-          'Your orders',
+          'Live or manual tracking',
           style: TextStyle(
             fontSize: 12,
             color: teal,
@@ -1099,12 +1114,15 @@ class OrderTrackingScreen extends StatelessWidget {
           style: TextStyle(fontSize: 28, fontWeight: FontWeight.bold),
         ),
         const SizedBox(height: 18),
+        TextField(controller: reference, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(labelText: 'Order reference', hintText: 'e.g. RR-AB12CD34', suffixIcon: IconButton(onPressed: loading ? null : track, icon: const Icon(Icons.search)))),
+        const SizedBox(height: 10),
+        FilledButton.icon(onPressed: loading ? null : track, icon: const Icon(Icons.location_searching), label: Text(loading ? 'Looking up...' : 'Track live order')),
         Card(
           child: ListTile(
             leading: const Icon(Icons.local_shipping_outlined, color: teal),
-            title: const Text('Order #RR-20481'),
+            title: Text('Order #${order?['reference'] ?? reference.text.trim()}'),
             subtitle: const Text('Arriving today, 14:00–16:00'),
-            trailing: Chip(label: Text('In transit')),
+            trailing: Chip(label: Text('${order?['status'] ?? 'Enter a reference'}')),
           ),
         ),
         const SizedBox(height: 22),
@@ -1260,37 +1278,50 @@ class _MetricCard extends StatelessWidget {
   );
 }
 
-class CatalogueScreen extends StatelessWidget {
+class CatalogueScreen extends StatefulWidget {
   const CatalogueScreen({super.key});
+  @override State<CatalogueScreen> createState() => _CatalogueScreenState();
+}
+class _CatalogueScreenState extends State<CatalogueScreen> {
+  final search = TextEditingController();
+  final api = const ApiService();
+  List<Map<String, dynamic>> medicines = [];
+  bool loading = true;
+  @override void initState() { super.initState(); _load(); }
+  Future<void> _load() async {
+    try { final values = await api.getMedicines(query: search.text); if (mounted) setState(() { medicines = values; loading = false; }); }
+    catch (_) { if (mounted) setState(() => loading = false); }
+  }
+  @override void dispose() { search.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Medicine catalogue')),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const TextField(
+        TextField(
+          controller: search,
+          onSubmitted: (_) => _load(),
           decoration: InputDecoration(
             labelText: 'Search medicines',
             prefixIcon: Icon(Icons.search),
+            suffixIcon: IconButton(onPressed: _load, icon: const Icon(Icons.search)),
           ),
         ),
         const SizedBox(height: 16),
-        ...[
-          'Paracetamol 500mg',
-          'Allergy Relief',
-          'Vitamin C 1000mg',
-          'Cough Calm Syrup',
-        ].map(
+        if (loading) const Center(child: CircularProgressIndicator()),
+        if (!loading && medicines.isEmpty) const EmptyState(icon: Icons.medication_outlined, title: 'No medicines found', message: 'Try another medicine or category.'),
+        ...medicines.map(
           (item) => Card(
             child: ListTile(
               leading: const CircleAvatar(
                 backgroundColor: Color(0xFFE5F6F2),
                 child: Icon(Icons.medication_outlined, color: teal),
               ),
-              title: Text(item),
+              title: Text(item['name'] as String? ?? 'Medicine'),
               subtitle: const Text('Availability • prices shown in ZAR'),
               trailing: const Icon(Icons.chevron_right),
-              onTap: () => showMessage(context, '$item details opened.'),
+              onTap: () => showMessage(context, '${item['name']} selected.'),
             ),
           ),
         ),

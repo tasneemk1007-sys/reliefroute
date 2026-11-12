@@ -133,7 +133,7 @@ class ApiService {
   }
 
   Future<List<dynamic>> _getList(String path) async {
-    final response = await http.get(Uri.parse('$baseUrl$path'));
+    final response = await http.get(Uri.parse('$baseUrl$path'), headers: await _headers());
     if (response.statusCode != 200) throw Exception('Request failed');
     return jsonDecode(response.body) as List<dynamic>;
   }
@@ -145,7 +145,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/refill_reminders'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'medicine': medicine,
         'time': time,
@@ -159,7 +159,7 @@ class ApiService {
   Future<Map<String, dynamic>> submitPrescription(String fileName) async {
     final response = await http.post(
       Uri.parse('$baseUrl/prescriptions'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({'fileName': fileName}),
     );
     if (response.statusCode != 201) {
@@ -171,6 +171,7 @@ class ApiService {
   Future<List<Map<String, dynamic>>> getOrdersForUser(String userId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/orders/user/${Uri.encodeComponent(userId)}'),
+      headers: await _headers(),
     );
     return _decodeList(response, 'Could not load orders');
   }
@@ -184,7 +185,7 @@ class ApiService {
   }) async {
     final response = await http.post(
       Uri.parse('$baseUrl/orders/place'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode({
         'user_id': userId,
         'address': address,
@@ -199,12 +200,13 @@ class ApiService {
   Future<Map<String, dynamic>> getOrderTracking(String orderId) async {
     final response = await http.get(
       Uri.parse('$baseUrl/orders/$orderId/tracking'),
+      headers: await _headers(),
     );
     return _decodeObject(response, 'Could not load order tracking');
   }
 
   Future<List<Map<String, dynamic>>> getCollection(String collection) async {
-    final response = await http.get(Uri.parse('$baseUrl/$collection'));
+    final response = await http.get(Uri.parse('$baseUrl/$collection'), headers: await _headers());
     return _decodeList(response, 'Could not load $collection');
   }
 
@@ -214,7 +216,7 @@ class ApiService {
   ) async {
     final response = await http.post(
       Uri.parse('$baseUrl/$collection'),
-      headers: {'Content-Type': 'application/json'},
+      headers: await _headers(json: true),
       body: jsonEncode(value),
     );
     return _decodeObject(response, 'Could not save $collection');

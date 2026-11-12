@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
 import 'patient_data_service.dart';
@@ -10,7 +11,10 @@ class PatientProfileScreen extends StatefulWidget {
 }
 
 class _PatientProfileScreenState extends State<PatientProfileScreen> {
-  final name = TextEditingController();
+  final firstName = TextEditingController();
+  final surname = TextEditingController();
+  final username = TextEditingController();
+  final email = TextEditingController();
   final phone = TextEditingController();
   final address = TextEditingController();
   bool loading = true;
@@ -25,7 +29,10 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
       (snapshot) {
         if (!mounted) return;
         final values = snapshot.data() ?? {};
-        name.text = values['fullName'] as String? ?? '';
+        firstName.text = values['firstName'] as String? ?? '';
+        surname.text = values['surname'] as String? ?? '';
+        username.text = values['username'] as String? ?? '';
+        email.text = values['email'] as String? ?? FirebaseAuth.instance.currentUser?.email ?? '';
         phone.text = values['phone'] as String? ?? '';
         address.text = values['address'] as String? ?? '';
         setState(() => loading = false);
@@ -38,18 +45,26 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
 
   @override
   void dispose() {
-    name.dispose();
+    firstName.dispose(); surname.dispose(); username.dispose(); email.dispose();
     phone.dispose();
     address.dispose();
     super.dispose();
   }
 
   Future<void> save() async {
-    if (name.text.trim().isEmpty) return;
+    if (firstName.text.trim().isEmpty || surname.text.trim().isEmpty) return;
     setState(() => saving = true);
     try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user != null && email.text.trim() != (user.email ?? '')) {
+        await user.verifyBeforeUpdateEmail(email.text.trim());
+      }
       await data.saveProfile({
-        'fullName': name.text.trim(),
+        'firstName': firstName.text.trim(),
+        'surname': surname.text.trim(),
+        'username': username.text.trim(),
+        'fullName': '${firstName.text.trim()} ${surname.text.trim()}',
+        'email': email.text.trim(),
         'phone': phone.text.trim(),
         'address': address.text.trim(),
       });
@@ -76,10 +91,13 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         : ListView(
             padding: const EdgeInsets.all(20),
             children: [
-              TextFormField(
-                controller: name,
-                decoration: const InputDecoration(labelText: 'Full name'),
-              ),
+              TextFormField(controller: firstName, decoration: const InputDecoration(labelText: 'First name')),
+              const SizedBox(height: 14),
+              TextFormField(controller: surname, decoration: const InputDecoration(labelText: 'Surname')),
+              const SizedBox(height: 14),
+              TextFormField(controller: username, decoration: const InputDecoration(labelText: 'Username')),
+              const SizedBox(height: 14),
+              TextFormField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address')),
               const SizedBox(height: 14),
               TextFormField(
                 controller: phone,
