@@ -6,17 +6,20 @@ import 'driver_tracking.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 
 import 'firebase_options.dart';
 import 'patient_screens.dart';
 import 'patient_data_service.dart';
 import 'role_dashboards.dart';
+import 'live_cart_service.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
 const teal = Color(0xFF087F8C);
 const darkTeal = Color(0xFF123047);
+final liveCart = LiveCartService();
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Firebase.apps.isEmpty) {
@@ -628,6 +631,11 @@ class Dashboard extends StatelessWidget {
       ),
       actions: [
         IconButton(
+          tooltip: 'Cart',
+          icon: const Icon(Icons.shopping_bag_outlined),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
+        ),
+        IconButton(
           onPressed: () =>
               showMessage(context, 'You have 2 new notifications.'),
           icon: const Badge(
@@ -747,10 +755,7 @@ class Dashboard extends StatelessWidget {
         ),
         const SizedBox(height: 12),
         OutlinedButton.icon(
-          onPressed: () => showMessage(
-            context,
-            'Catalogue search is available from the Medicines section.',
-          ),
+          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CatalogueScreen())),
           icon: const Icon(Icons.medication_outlined),
           label: const Text('Browse medicine catalogue'),
         ),
@@ -1303,13 +1308,23 @@ class _CatalogueScreenState extends State<CatalogueScreen> {
   bool loading = true;
   @override void initState() { super.initState(); _load(); }
   Future<void> _load() async {
-    try { final values = await api.getMedicines(query: search.text); if (mounted) setState(() { medicines = values; loading = false; }); }
-    catch (_) { if (mounted) setState(() => loading = false); }
+    try {
+      final values = await api.getMedicines(query: search.text);
+      if (mounted) setState(() { medicines = values; loading = false; });
+    } catch (error) {
+      if (mounted) { setState(() => loading = false); showMessage(context, 'Could not load medicines. Check the backend connection.'); }
+    }
   }
   @override void dispose() { search.dispose(); super.dispose(); }
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Medicine catalogue')),
+    appBar: AppBar(title: const Text('Medicine catalogue'), actions: [
+      IconButton(
+        tooltip: 'Cart',
+        icon: const Icon(Icons.shopping_bag_outlined),
+        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
+      ),
+    ]),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -1334,14 +1349,81 @@ class _CatalogueScreenState extends State<CatalogueScreen> {
               ),
               title: Text(item['name'] as String? ?? 'Medicine'),
               subtitle: const Text('Availability • prices shown in ZAR'),
-              trailing: const Icon(Icons.chevron_right),
-              onTap: () => showMessage(context, '${item['name']} selected.'),
+              trailing: FilledButton(
+                onPressed: (item['stock_quantity'] ?? 1) == 0 ? null : () {
+                  liveCart.add({...item, 'id': '${item['id']}', 'name': '${item['name']}', 'price': double.tryParse('${item['price'] ?? 0}') ?? 0});
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Added to your live cart')));
+                }, child: const Text('Add')),
+              onTap: () {},
             ),
           ),
         ),
       ],
     ),
   );
+}
+
+class CartScreen extends StatefulWidget {
+  const CartScreen({super.key});
+  @override State<CartScreen> createState() => _CartScreenState();
+}
+
+class _CartScreenState extends State<CartScreen> {
+  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Your cart')), body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(stream: liveCart.watch(), builder: (context, snapshot) {
+    final docs = snapshot.data?.docs ?? [];
+    if (snapshot.hasError) return const EmptyState(icon: Icons.error_outline, title: 'Cart unavailable', message: 'Please sign in again and retry.');
+    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+    if (docs.isEmpty) return const EmptyState(icon: Icons.shopping_bag_outlined, title: 'Your cart is empty', message: 'Add medicines from the shop to get started.');
+    final subtotal = docs.fold<double>(0, (sum, d) => sum + (double.tryParse('${d.data()['price'] ?? 0}') ?? 0) * ((d.data()['quantity'] ?? 0) as num).toDouble());
+    return ListView(padding: const EdgeInsets.all(20), children: [...docs.map((d) { final x = d.data(); final q = (x['quantity'] ?? 1) as num; return Card(child: ListTile(title: Text('${x['name']}'), subtitle: Text(zar((double.tryParse('${x['price'] ?? 0}') ?? 0) * q.toDouble())), leading: CircleAvatar(child: Text('$q')), trailing: Row(mainAxisSize: MainAxisSize.min, children: [IconButton(onPressed: () => liveCart.change(d.id, q.toInt() - 1), icon: const Icon(Icons.remove_circle_outline)), IconButton(onPressed: () => liveCart.change(d.id, q.toInt() + 1), icon: const Icon(Icons.add_circle_outline))]))); }), const SizedBox(height: 12), Card(child: ListTile(title: const Text('Total'), trailing: Text(zar(subtotal + 35), style: const TextStyle(fontWeight: FontWeight.bold)))), const SizedBox(height: 12), FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutScreen())), icon: const Icon(Icons.lock_outline), label: const Text('Continue to checkout'))]);
+  });
+}
+
+class CheckoutScreen extends StatefulWidget {
+  const CheckoutScreen({super.key});
+  @override State<CheckoutScreen> createState() => _CheckoutScreenState();
+}
+class _CheckoutScreenState extends State<CheckoutScreen> {
+  final address = TextEditingController();
+  bool placing = false;
+  @override void dispose() { address.dispose(); super.dispose(); }
+  Future<void> _place() async {
+    if (address.text.trim().isEmpty) { showMessage(context, 'Please enter a delivery address.'); return; }
+    setState(() => placing = true);
+    String reference;
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw StateError('not signed in');
+      final cartDocs = (await liveCart.items.get()).docs;
+      final result = await const ApiService().placeOrder(
+        userId: user.uid, address: address.text.trim(),
+        items: cartDocs.map((doc) => {'medication_id': doc.id, 'quantity': doc.data()['quantity']}).toList());
+      reference = '${result['reference'] ?? result['id']}';
+      await liveCart.clear();
+    } catch (_) {
+      if (mounted) showMessage(context, 'Could not place the order. Please check your connection and try again.');
+      if (mounted) setState(() => placing = false);
+      return;
+    }
+    if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => OrderConfirmationScreen(reference: reference)), (route) => route.isFirst);
+  }
+  @override Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Checkout')),
+    body: ListView(padding: const EdgeInsets.all(20), children: [
+      const PageTitle('Delivery details', 'Where should we bring your order?'),
+      TextField(controller: address, maxLines: 3, decoration: const InputDecoration(labelText: 'Delivery address', hintText: 'Street, suburb and city')),
+      const SizedBox(height: 16),
+      const ListTile(leading: Icon(Icons.payments_outlined, color: teal), title: Text('Payment'), subtitle: Text('Cash/card on delivery (demo)')),
+      const SizedBox(height: 12),
+      FilledButton(onPressed: placing ? null : _place, child: Text(placing ? 'Placing order...' : 'Place order')),
+    ]),
+  );
+}
+
+class OrderConfirmationScreen extends StatelessWidget {
+  final String reference;
+  const OrderConfirmationScreen({super.key, required this.reference});
+  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Order confirmed')), body: Center(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.check_circle, color: teal, size: 72), const SizedBox(height: 16), const Text('Your order is on its way', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text('Reference $reference'), const SizedBox(height: 24), FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Back to shop'))])));
 }
 
 class MedicalAidScreen extends StatelessWidget {
