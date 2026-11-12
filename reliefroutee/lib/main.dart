@@ -965,6 +965,11 @@ class Dashboard extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (_) => const PatientProfileScreen()),
           );
+        } else if (index == 5) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ComingSoonTabsScreen()),
+          );
         }
       },
       destinations: const [
@@ -989,7 +994,83 @@ class Dashboard extends StatelessWidget {
           icon: Icon(Icons.person_outline),
           label: 'Profile',
         ),
+        NavigationDestination(
+          icon: Icon(Icons.more_horiz),
+          label: 'More',
+        ),
       ],
+    ),
+  );
+}
+
+class ComingSoonTabsScreen extends StatelessWidget {
+  const ComingSoonTabsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => DefaultTabController(
+    length: 3,
+    child: Scaffold(
+      appBar: AppBar(
+        title: const Text('Coming soon'),
+        bottom: const TabBar(
+          isScrollable: true,
+          tabs: [
+            Tab(icon: Icon(Icons.payment_outlined), text: 'Payments'),
+            Tab(icon: Icon(Icons.my_location_outlined), text: 'Live tracking'),
+            Tab(icon: Icon(Icons.fact_check_outlined), text: 'Prescription review'),
+          ],
+        ),
+      ),
+      body: const TabBarView(
+        children: [
+          _ComingSoonFeature(
+            icon: Icons.payment_outlined,
+            title: 'Payments',
+            message: 'Secure in-app payment options are coming soon.',
+          ),
+          _ComingSoonFeature(
+            icon: Icons.my_location_outlined,
+            title: 'Live delivery tracking',
+            message: 'Real-time driver location and delivery progress are coming soon.',
+          ),
+          _ComingSoonFeature(
+            icon: Icons.fact_check_outlined,
+            title: 'Prescription review',
+            message: 'Pharmacist review and approval of prescription orders are coming soon.',
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ComingSoonFeature extends StatelessWidget {
+  const _ComingSoonFeature({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 56, color: teal),
+          const SizedBox(height: 16),
+          Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Chip(label: Text('Coming soon')),
+          const SizedBox(height: 8),
+          Text(message, textAlign: TextAlign.center),
+        ],
+      ),
     ),
   );
 }
