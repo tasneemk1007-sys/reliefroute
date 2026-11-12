@@ -1385,8 +1385,12 @@ class CheckoutScreen extends StatefulWidget {
 }
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final address = TextEditingController();
+  final promo = TextEditingController();
   bool placing = false;
-  @override void dispose() { address.dispose(); super.dispose(); }
+  String pharmacy = 'ReliefRoute Central Pharmacy';
+  String payment = 'Cash on delivery';
+  bool promoApplied = false;
+  @override void dispose() { address.dispose(); promo.dispose(); super.dispose(); }
   Future<void> _place() async {
     if (address.text.trim().isEmpty) { showMessage(context, 'Please enter a delivery address.'); return; }
     setState(() => placing = true);
@@ -1411,9 +1415,16 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     appBar: AppBar(title: const Text('Checkout')),
     body: ListView(padding: const EdgeInsets.all(20), children: [
       const PageTitle('Delivery details', 'Where should we bring your order?'),
+      DropdownButtonFormField<String>(value: pharmacy, decoration: const InputDecoration(labelText: 'Choose a pharmacy'), items: const [DropdownMenuItem(value: 'ReliefRoute Central Pharmacy', child: Text('ReliefRoute Central Pharmacy • 1.2 km')), DropdownMenuItem(value: 'Campus Care Pharmacy', child: Text('Campus Care Pharmacy • 2.4 km')), DropdownMenuItem(value: 'Rosebank Community Pharmacy', child: Text('Rosebank Community Pharmacy • 4.1 km'))], onChanged: (v) => setState(() => pharmacy = v!)),
+      const SizedBox(height: 12),
       TextField(controller: address, maxLines: 3, decoration: const InputDecoration(labelText: 'Delivery address', hintText: 'Street, suburb and city')),
+      const SizedBox(height: 8),
+      OutlinedButton.icon(onPressed: () { address.text = 'Campus Residence, Main Campus'; }, icon: const Icon(Icons.bookmark_outline), label: const Text('Use saved campus address')),
       const SizedBox(height: 16),
-      const ListTile(leading: Icon(Icons.payments_outlined, color: teal), title: Text('Payment'), subtitle: Text('Cash/card on delivery (demo)')),
+      DropdownButtonFormField<String>(value: payment, decoration: const InputDecoration(labelText: 'Payment method'), items: const [DropdownMenuItem(value: 'Cash on delivery', child: Text('Cash on delivery')), DropdownMenuItem(value: 'Card payment', child: Text('Card payment (simulated)')), DropdownMenuItem(value: 'Medical aid', child: Text('Medical aid claim (simulated)'))], onChanged: (v) => setState(() => payment = v!)),
+      const SizedBox(height: 12),
+      Row(children: [Expanded(child: TextField(controller: promo, decoration: const InputDecoration(labelText: 'Promo code', hintText: 'CAMPUS10'))), const SizedBox(width: 8), OutlinedButton(onPressed: () { if (promo.text.trim().toUpperCase() == 'CAMPUS10') { setState(() => promoApplied = true); showMessage(context, 'Promo applied: 10% campus discount'); } else showMessage(context, 'Try promo code CAMPUS10'); }, child: const Text('Apply'))]),
+      if (promoApplied) const ListTile(leading: Icon(Icons.discount_outlined, color: teal), title: Text('Campus discount applied'), subtitle: Text('10% off your demo order')),
       const SizedBox(height: 12),
       FilledButton(onPressed: placing ? null : _place, child: Text(placing ? 'Placing order...' : 'Place order')),
     ]),
@@ -1423,7 +1434,7 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
 class OrderConfirmationScreen extends StatelessWidget {
   final String reference;
   const OrderConfirmationScreen({super.key, required this.reference});
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Order confirmed')), body: Center(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.check_circle, color: teal, size: 72), const SizedBox(height: 16), const Text('Your order is on its way', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text('Reference $reference'), const SizedBox(height: 24), FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Back to shop'))])));
+  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Order confirmed')), body: Center(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.check_circle, color: teal, size: 72), const SizedBox(height: 16), const Text('Your order is on its way', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text('Reference $reference'), const SizedBox(height: 8), const Chip(avatar: Icon(Icons.local_shipping_outlined), label: Text('Driver assigned • 18 min away')), const SizedBox(height: 16), OutlinedButton.icon(onPressed: () => showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Rate your delivery'), content: const Text('How was your campus delivery?'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('1')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('2')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('3')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('4')), TextButton(onPressed: () { Navigator.pop(context); showMessage(context, 'Thanks for rating your delivery.'); }, child: const Text('5'))])), icon: const Icon(Icons.star_outline), label: const Text('Rate delivery')), OutlinedButton.icon(onPressed: () => showMessage(context, 'Demo cancellation: order marked for cancellation.'), icon: const Icon(Icons.cancel_outlined), label: const Text('Cancel order')), const SizedBox(height: 8), FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Back to shop'))])));
 }
 
 class MedicalAidScreen extends StatelessWidget {
