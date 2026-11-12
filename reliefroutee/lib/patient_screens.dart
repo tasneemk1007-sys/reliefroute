@@ -9,10 +9,21 @@ final _emailPattern = RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$');
 final _phonePattern = RegExp(r'^\d{7,15}$');
 final _namePattern = RegExp(r"^[A-Za-z][A-Za-z '\-]*$");
 
-String? _validEmail(String? value) => value != null && _emailPattern.hasMatch(value.trim()) ? null : 'Please enter a valid email address.';
-String? _validPhone(String? value) => value != null && _phonePattern.hasMatch(value.trim()) ? null : 'Phone number must contain 7-15 digits only.';
-String? _validName(String? value) => value != null && _namePattern.hasMatch(value.trim()) ? null : 'This field must contain letters only.';
-String? _validMedicationName(String? value) => _validName(value) == null ? null : 'Medication name must contain letters only.';
+String? _validEmail(String? value) =>
+    value != null && _emailPattern.hasMatch(value.trim())
+    ? null
+    : 'Please enter a valid email address.';
+String? _validPhone(String? value) =>
+    value != null && _phonePattern.hasMatch(value.trim())
+    ? null
+    : 'Phone number must contain 7-15 digits only.';
+String? _validName(String? value) =>
+    value != null && _namePattern.hasMatch(value.trim())
+    ? null
+    : 'This field must contain letters only.';
+String? _validMedicationName(String? value) => _validName(value) == null
+    ? null
+    : 'Medication name must contain letters only.';
 
 class PatientProfileScreen extends StatefulWidget {
   const PatientProfileScreen({super.key});
@@ -43,7 +54,10 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         firstName.text = values['firstName'] as String? ?? '';
         surname.text = values['surname'] as String? ?? '';
         username.text = values['username'] as String? ?? '';
-        email.text = values['email'] as String? ?? FirebaseAuth.instance.currentUser?.email ?? '';
+        email.text =
+            values['email'] as String? ??
+            FirebaseAuth.instance.currentUser?.email ??
+            '';
         phone.text = values['phone'] as String? ?? '';
         address.text = values['address'] as String? ?? '';
         setState(() => loading = false);
@@ -56,7 +70,10 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
 
   @override
   void dispose() {
-    firstName.dispose(); surname.dispose(); username.dispose(); email.dispose();
+    firstName.dispose();
+    surname.dispose();
+    username.dispose();
+    email.dispose();
     phone.dispose();
     address.dispose();
     super.dispose();
@@ -103,37 +120,53 @@ class _PatientProfileScreenState extends State<PatientProfileScreen> {
         : Form(
             key: _formKey,
             child: ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              TextFormField(controller: firstName, decoration: const InputDecoration(labelText: 'First name'), validator: _validName),
-              const SizedBox(height: 14),
-              TextFormField(controller: surname, decoration: const InputDecoration(labelText: 'Surname'), validator: _validName),
-              const SizedBox(height: 14),
-              TextFormField(controller: username, decoration: const InputDecoration(labelText: 'Username')),
-              const SizedBox(height: 14),
-              TextFormField(controller: email, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(labelText: 'Email address'), validator: _validEmail),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: phone,
-                keyboardType: TextInputType.phone,
-                inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-                decoration: const InputDecoration(labelText: 'Phone number'),
-                validator: _validPhone,
-              ),
-              const SizedBox(height: 14),
-              TextFormField(
-                controller: address,
-                maxLines: 2,
-                decoration: const InputDecoration(labelText: 'Address'),
-              ),
-              const SizedBox(height: 22),
-              FilledButton(
-                onPressed: saving ? null : save,
-                child: Text(saving ? 'Saving...' : 'Save profile'),
-              ),
-            ],
+              padding: const EdgeInsets.all(20),
+              children: [
+                TextFormField(
+                  controller: firstName,
+                  decoration: const InputDecoration(labelText: 'First name'),
+                  validator: _validName,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: surname,
+                  decoration: const InputDecoration(labelText: 'Surname'),
+                  validator: _validName,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: username,
+                  decoration: const InputDecoration(labelText: 'Username'),
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: email,
+                  keyboardType: TextInputType.emailAddress,
+                  decoration: const InputDecoration(labelText: 'Email address'),
+                  validator: _validEmail,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: phone,
+                  keyboardType: TextInputType.phone,
+                  inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+                  decoration: const InputDecoration(labelText: 'Phone number'),
+                  validator: _validPhone,
+                ),
+                const SizedBox(height: 14),
+                TextFormField(
+                  controller: address,
+                  maxLines: 2,
+                  decoration: const InputDecoration(labelText: 'Address'),
+                ),
+                const SizedBox(height: 22),
+                FilledButton(
+                  onPressed: saving ? null : save,
+                  child: Text(saving ? 'Saving...' : 'Save profile'),
+                ),
+              ],
+            ),
           ),
-        ),
   );
 }
 
