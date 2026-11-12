@@ -10,6 +10,13 @@ class PatientDataService {
   final FirebaseFirestore _firestore;
   final FirebaseAuth _auth;
 
+  DocumentReference<Map<String, dynamic>> deliveryTracking(String orderId) =>
+      _firestore.collection('deliveries').doc(orderId);
+
+  Stream<DocumentSnapshot<Map<String, dynamic>>> watchDeliveryTracking(
+    String orderId,
+  ) => deliveryTracking(orderId).snapshots();
+
   String get uid =>
       _auth.currentUser?.uid ??
       (throw StateError('A signed-in patient is required.'));
@@ -45,10 +52,10 @@ class PatientDataService {
       throw ArgumentError('Medication name must contain letters only.');
     }
     return medications.add({
-    ...values,
-    'name': name,
-    'userId': uid,
-    'createdAt': FieldValue.serverTimestamp(),
+      ...values,
+      'name': name,
+      'userId': uid,
+      'createdAt': FieldValue.serverTimestamp(),
     });
   }
 

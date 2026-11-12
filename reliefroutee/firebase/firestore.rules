@@ -61,6 +61,20 @@ service cloud.firestore {
       allow write: if false; // Create/update through a trusted backend
     }
 
+    match /deliveries/{orderId} {
+      allow read: if signedIn()
+        && (resource.data.customerId == request.auth.uid
+            || resource.data.driverId == request.auth.uid);
+      // Delivery assignment is created by the trusted backend only.
+      allow create: if false;
+      allow update: if signedIn()
+        && resource.data.driverId == request.auth.uid
+        && request.resource.data.driverId == resource.data.driverId
+        && request.resource.data.diff(resource.data).affectedKeys()
+          .hasOnly(['latitude', 'longitude', 'heading', 'updatedAt']);
+      allow delete: if false;
+    }
+
     match /{document=**} { allow read, write: if false; }
   }
 }

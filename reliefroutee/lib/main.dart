@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'api_service.dart';
+import 'driver_tracking.dart';
 
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -1117,6 +1118,7 @@ class _OrderTrackingState extends State<OrderTrackingScreen> {
         TextField(controller: reference, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(labelText: 'Order reference', hintText: 'e.g. RR-AB12CD34', suffixIcon: IconButton(onPressed: loading ? null : track, icon: const Icon(Icons.search)))),
         const SizedBox(height: 10),
         FilledButton.icon(onPressed: loading ? null : track, icon: const Icon(Icons.location_searching), label: Text(loading ? 'Looking up...' : 'Track live order')),
+        if (order?['id'] != null) OpenStreetMapTracking(orderId: '${order!['id']}'),
         Card(
           child: ListTile(
             leading: const Icon(Icons.local_shipping_outlined, color: teal),

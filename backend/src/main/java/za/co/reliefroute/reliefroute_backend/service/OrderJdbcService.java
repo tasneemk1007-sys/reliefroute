@@ -64,7 +64,7 @@ public class OrderJdbcService {
 
     public Map<String, Object> tracking(String reference, String firebaseUid) {
         try {
-            return jdbc.queryForMap("SELECT o.reference,o.status,o.subtotal,o.delivery_fee,o.total,o.created_at,o.updated_at FROM orders o WHERE o.reference=? AND o.firebase_uid=?", reference, firebaseUid);
+            return jdbc.queryForMap("SELECT o.id,o.reference,o.status,o.subtotal,o.delivery_fee,o.total,o.created_at,o.updated_at FROM orders o WHERE o.reference=? AND o.firebase_uid=?", reference, firebaseUid);
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             throw notFound("Order not found");
         }
