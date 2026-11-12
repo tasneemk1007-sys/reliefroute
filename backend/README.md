@@ -18,9 +18,14 @@ orders, order_items, deliveries, prescriptions, and refill_reminders. Storage
 paths are `Medicines pic/` and `prescriptions/`. Never commit a service-account
 JSON file.
 
-The current Flutter demo still uses local mock data; the next client step is to
-replace `MockRepository` calls with HTTP calls to this API and add Firebase
-Flutter initialization using your own project configuration.
+The Flutter client uses this API for the medicine catalogue and checkout. Its
+default URL is `http://localhost:8080/api` for web/desktop. For Android, pass
+the host computer's LAN address, for example:
+`flutter run --dart-define=API_BASE_URL=http://192.168.1.10:8080/api`.
+
+The Firebase Flutter client and this Spring Boot API run as separate processes:
+Firebase handles authentication and live carts, while this API handles
+catalogue stock and order placement.
 
 The API also exposes demo endpoints for `GET/POST /api/reminders`,
 `GET/POST /api/orders`, and `GET/POST /api/prescriptions`. These endpoints keep
