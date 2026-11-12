@@ -176,10 +176,28 @@ class ApiService {
     return _decodeList(response, 'Could not load orders');
   }
 
+  Future<Map<String, dynamic>> quoteOrder({
+    required String userId,
+    required String address,
+    required List<Map<String, dynamic>> items,
+  }) async {
+    final response = await http.post(
+      Uri.parse('$baseUrl/orders/quote'),
+      headers: await _headers(json: true),
+      body: jsonEncode({
+        'user_id': userId,
+        'address': address,
+        'items': items,
+      }),
+    );
+    return _decodeObject(response, 'Could not calculate the order total');
+  }
+
   Future<Map<String, dynamic>> placeOrder({
     required String userId,
     required String address,
     required List<Map<String, dynamic>> items,
+    required double expectedTotal,
     String pharmacyId = '',
     String prescriptionId = '',
   }) async {
@@ -191,6 +209,7 @@ class ApiService {
         'address': address,
         'pharmacy_id': pharmacyId,
         'prescription_id': prescriptionId,
+        'expected_total': expectedTotal,
         'items': items,
       }),
     );

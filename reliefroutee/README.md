@@ -4,7 +4,7 @@ ReliefRoute is a Flutter student project for a South African medication ordering
 
 ## Run
 
-Install Flutter on the computer first. Do not copy machine-specific build output or `android/local.properties`; Flutter/Android tooling creates local configuration for each developer.
+Install Flutter on the computer first. From the repository root, run `./run_reliefroute.ps1`. For Android, pass a backend URL reachable from the phone, such as `./run_reliefroute.ps1 -Device android -ApiBaseUrl http://192.168.1.10:8080/api`. Do not copy machine-specific build output or `android/local.properties`.
 
 ```bash
 flutter pub get
@@ -17,25 +17,20 @@ For the demonstration login, enter any username and a password with at least fou
 
 ## Team handoff
 
-The current application uses sample data so that the screens can be tested without a live service. The medicine finder searches the local catalogue. Medical-aid benefits, doctor availability, pharmacy stock, payments, prescription review, authentication, notifications and delivery tracking still need service connections.
+The app uses Firebase Authentication and Firestore for sign-in and patient data, and the Spring Boot API with MySQL for the medicine catalogue and order checkout. Some staff and health-service features remain demonstrations or are marked Coming soon.
 
 The data classes are kept in `lib/models.dart` and the sample data is in `lib/mock_repository.dart`. Do not store real passwords, payment details or medical files in this frontend.
 
 ## Verification
 
-The widget tests cover the welcome screen and successful demo login. Run `flutter test` before each handoff. Run `flutter analyze` to catch lint and compatibility issues.
+Run `flutter analyze` to check Dart changes.
 
 ## Backend connection
 
-Start the Spring Boot API from the repository's `backend` folder. The medicine
-finder calls `http://localhost:8080/api/medicines`. If the API is offline, it
-uses the local sample catalogue instead. The HTTP client is in
-`lib/api_service.dart`.
+Start the Spring Boot API from the repository's `backend` folder. The catalogue and checkout use `http://localhost:8080/api` by default for web/desktop. On Android, set `API_BASE_URL` to the computer's LAN address as described above. The HTTP client is in `lib/api_service.dart`.
 
 ## Next integration work
 
-1. Connect the remaining Flutter screens to the Spring Boot API.
-2. Add login and user roles.
-3. Connect the catalogue, stock, orders and prescriptions to MySQL.
-4. Add payment and file storage using services that meet the project requirements.
-5. Test the app with sample users and sample orders.
+1. Finish the staff, payment and prescription review integrations.
+2. Configure Firebase and MySQL credentials for each deployment environment.
+3. Validate delivery driver assignment and tracking with deployed Firebase rules.

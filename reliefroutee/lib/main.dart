@@ -1241,77 +1241,24 @@ class _OrderTrackingState extends State<OrderTrackingScreen> {
         const SizedBox(height: 18),
         TextField(controller: reference, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(labelText: 'Order reference', hintText: 'e.g. RR-AB12CD34', suffixIcon: IconButton(onPressed: loading ? null : track, icon: const Icon(Icons.search)))),
         const SizedBox(height: 10),
-        FilledButton.icon(onPressed: loading ? null : track, icon: const Icon(Icons.location_searching), label: Text(loading ? 'Looking up...' : 'Track live order')),
-        if (order?['id'] != null) OpenStreetMapTracking(orderId: '${order!['id']}'),
+        FilledButton.icon(onPressed: loading ? null : track, icon: const Icon(Icons.search), label: Text(loading ? 'Looking up...' : 'View order status')),
+        if (order?['reference'] != null)
+          OpenStreetMapTracking(orderId: '${order!['reference']}'),
         Card(
           child: ListTile(
             leading: const Icon(Icons.local_shipping_outlined, color: teal),
             title: Text('Order #${order?['reference'] ?? reference.text.trim()}'),
-            subtitle: const Text('Arriving today, 14:00–16:00'),
+            subtitle: Text(order == null ? 'Enter an order reference to see its status.' : 'Status from your order'),
             trailing: Chip(label: Text('${order?['status'] ?? 'Enter a reference'}')),
           ),
         ),
-        const SizedBox(height: 22),
-        const Text(
-          'Delivery progress',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        const _ProgressStep(
-          'Order confirmed',
-          'Your order has been received.',
-          true,
-        ),
-        const _ProgressStep(
-          'Preparing your order',
-          'Pharmacy team is packing your items.',
-          true,
-        ),
-        const _ProgressStep(
-          'On the way',
-          'Your rider is heading to you.',
-          true,
-        ),
-        const _ProgressStep(
-          'Delivered',
-          'We will notify you when it arrives.',
-          false,
-        ),
-        const SizedBox(height: 16),
-        Card(
-          color: const Color(0xFFE5F6F2),
-          child: const ListTile(
-            leading: CircleAvatar(child: Text('TB')),
-            title: Text('Your delivery partner'),
-            subtitle: Text('Thabo M. · Contact rider'),
+        if (order != null)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text('A live map appears after a driver is assigned and starts sharing location.'),
           ),
-        ),
-        OutlinedButton(
-          onPressed: () => showMessage(context, 'Support request started.'),
-          child: const Text('Need help with this order? Contact support'),
-        ),
       ],
     ),
-  );
-}
-
-class _ProgressStep extends StatelessWidget {
-  final String title, detail;
-  final bool complete;
-  const _ProgressStep(this.title, this.detail, this.complete);
-  @override
-  Widget build(BuildContext context) => ListTile(
-    leading: CircleAvatar(
-      radius: 12,
-      backgroundColor: complete ? teal : Colors.white,
-      child: Icon(
-        complete ? Icons.check : Icons.circle_outlined,
-        size: 15,
-        color: complete ? Colors.white : Colors.grey,
-      ),
-    ),
-    title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-    subtitle: Text(detail),
   );
 }
 
@@ -1703,6 +1650,11 @@ class CheckoutScreen extends StatefulWidget {
 
 class _CheckoutScreenState extends State<CheckoutScreen> {
   final address = TextEditingController();
+  final api = const ApiService();
+  Map<String, dynamic>? quote;
+  String? quotedAddress;
+  List<String>? quotedCartSignature;
+  bool quoting = false;
   bool placing = false;
 
   @override
@@ -1711,31 +1663,78 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
     super.dispose();
   }
 
-  Future<void> _place() async {
-    if (address.text.trim().length < 8) {
+  Future<List<Map<String, dynamic>>> _currentItems() async {
+    final cartDocs = (await liveCart.items.get()).docs;
+    if (cartDocs.isEmpty) throw StateError('Your cart is empty.');
+    if (cartDocs.any((doc) =>
+        doc.data()['prescription_required'] == true ||
+        doc.data()['prescriptionRequired'] == true)) {
+      throw StateError('Prescription items require pharmacist review.');
+    }
+    return cartDocs
+        .map((doc) => {
+              'medication_id': doc.id,
+              'quantity': _stock(doc.data()['quantity']),
+            })
+        .toList();
+  }
+
+  Future<void> _loadQuote() async {
+    final deliveryAddress = address.text.trim();
+    if (deliveryAddress.length < 8) {
       showMessage(context, 'Please enter a complete delivery address.');
       return;
     }
+    if (quoting || placing) return;
+    setState(() => quoting = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw StateError('Sign in before checkout.');
+      final items = await _currentItems();
+      final result = await api.quoteOrder(
+        userId: user.uid,
+        address: deliveryAddress,
+        items: items,
+      );
+      if (!mounted) return;
+      setState(() {
+        quote = result;
+        quotedAddress = deliveryAddress;
+        quotedCartSignature = _cartSignature(items);
+      });
+    } catch (error) {
+      if (mounted) showMessage(context, 'Could not get current prices: $error');
+    } finally {
+      if (mounted) setState(() => quoting = false);
+    }
+  }
+
+  Future<void> _place() async {
+    final currentAddress = address.text.trim();
+    final currentQuote = quote;
+    if (currentQuote == null || quotedAddress != currentAddress) {
+      showMessage(context, 'Review the current prices and total before placing the order.');
+      return;
+    }
+    if (placing || quoting) return;
     setState(() => placing = true);
     try {
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) throw StateError('Sign in before placing an order.');
-      final cartDocs = (await liveCart.items.get()).docs;
-      if (cartDocs.isEmpty) throw StateError('Your cart is empty.');
-      if (cartDocs.any((doc) =>
-          doc.data()['prescription_required'] == true ||
-          doc.data()['prescriptionRequired'] == true)) {
-        throw StateError('Prescription items require pharmacist review.');
+      final items = await _currentItems();
+      if (!_sameSignature(_cartSignature(items), quotedCartSignature)) {
+        setState(() {
+          quote = null;
+          quotedCartSignature = null;
+        });
+        showMessage(context, 'Your cart changed. Review the current prices again.');
+        return;
       }
-      final result = await const ApiService().placeOrder(
+      final result = await api.placeOrder(
         userId: user.uid,
-        address: address.text.trim(),
-        items: cartDocs
-            .map((doc) => {
-                  'medication_id': doc.id,
-                  'quantity': _stock(doc.data()['quantity']),
-                })
-            .toList(),
+        address: currentAddress,
+        items: items,
+        expectedTotal: _money(currentQuote['total']),
       );
       final reference = '${result['reference'] ?? result['id'] ?? ''}'.trim();
       if (reference.isEmpty) {
@@ -1753,39 +1752,86 @@ class _CheckoutScreenState extends State<CheckoutScreen> {
       );
     } catch (error) {
       if (mounted) {
-        showMessage(context, 'Could not place the order: $error');
-        setState(() => placing = false);
+        final message = '$error';
+        if (message.contains('409') || message.contains('total changed')) {
+          setState(() => quote = null);
+          showMessage(context, 'The total changed. Review the updated prices before placing the order.');
+        } else {
+          showMessage(context, 'Could not place the order: $error');
+        }
       }
+    } finally {
+      if (mounted) setState(() => placing = false);
     }
   }
 
   @override
-  Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Checkout')),
-    body: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        const PageTitle('Delivery details', 'Where should we bring your order?'),
-        TextField(
-          controller: address,
-          maxLines: 3,
-          decoration: const InputDecoration(
-            labelText: 'Delivery address',
-            hintText: 'Street, suburb and city',
+  Widget build(BuildContext context) {
+    final pricedItems = quote?['items'] is List
+        ? (quote!['items'] as List)
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+        : const <Map<String, dynamic>>[];
+    final quoteIsCurrent = quote != null && quotedAddress == address.text.trim();
+    return Scaffold(
+      appBar: AppBar(title: const Text('Checkout')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const PageTitle('Delivery details', 'Where should we bring your order?'),
+          TextField(
+            controller: address,
+            maxLines: 3,
+            onChanged: (_) => setState(() => quote = null),
+            decoration: const InputDecoration(
+              labelText: 'Delivery address',
+              hintText: 'Street, suburb and city',
+            ),
           ),
-        ),
-        const SizedBox(height: 16),
-        const Text(
-          'The server checks current prices and stock and calculates the final total when you place the order.',
-        ),
-        const SizedBox(height: 16),
-        FilledButton(
-          onPressed: placing ? null : _place,
-          child: Text(placing ? 'Placing order...' : 'Place order'),
-        ),
-      ],
-    ),
-  );
+          if (quoteIsCurrent) ...[
+            const SizedBox(height: 20),
+            const Text('Current order prices', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ...pricedItems.map((item) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('${item['medicine_name'] ?? 'Medicine'}'),
+              subtitle: Text('Quantity: ${item['quantity']} × ${_zar(_money(item['unit_price']))}'),
+              trailing: Text(_zar(_money(item['line_total']))),
+            )),
+            _CartTotalRow(label: 'Subtotal', value: _zar(_money(quote!['subtotal']))),
+            _CartTotalRow(label: 'Delivery fee', value: _zar(_money(quote!['delivery_fee']))),
+            _CartTotalRow(label: 'Total', value: _zar(_money(quote!['total'])), strong: true),
+          ],
+          const SizedBox(height: 16),
+          if (!quoteIsCurrent)
+            FilledButton(
+              onPressed: quoting || placing ? null : _loadQuote,
+              child: Text(quoting ? 'Checking prices...' : 'Review current prices and total'),
+            )
+          else
+            FilledButton(
+              onPressed: placing ? null : _place,
+              child: Text(placing ? 'Placing order...' : 'Place order • ${_zar(_money(quote!['total']))}'),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+List<String> _cartSignature(List<Map<String, dynamic>> items) {
+  final signature = items
+      .map((item) => '${item['medication_id']}:${item['quantity']}')
+      .toList()
+    ..sort();
+  return signature;
+}
+
+bool _sameSignature(List<String> current, List<String>? quoted) {
+  if (quoted == null || current.length != quoted.length) return false;
+  for (var index = 0; index < current.length; index++) {
+    if (current[index] != quoted[index]) return false;
+  }
+  return true;
 }
 
 class OrderConfirmationScreen extends StatelessWidget {

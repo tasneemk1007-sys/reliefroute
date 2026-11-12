@@ -24,11 +24,12 @@ The configured Flutter application is in `reliefroutee`. Open
 .\run_reliefroute.ps1
 ```
 
-Choose a device when needed:
+Choose a device when needed. For Android, use the computer's LAN IP so the
+phone can reach the backend (replace the example address):
 
 ```powershell
 .\run_reliefroute.ps1 -Device chrome
-.\run_reliefroute.ps1 -Device android
+.\run_reliefroute.ps1 -Device android -ApiBaseUrl http://192.168.1.10:8080/api
 ```
 
 Do not run `flutter run` from the repository root; that selects the separate
