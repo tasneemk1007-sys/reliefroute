@@ -11,6 +11,7 @@ import 'package:file_picker/file_picker.dart';
 import 'firebase_options.dart';
 import 'patient_screens.dart';
 import 'patient_data_service.dart';
+import 'role_dashboards.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
@@ -98,7 +99,18 @@ class AuthGate extends StatelessWidget {
       }
       final user = snapshot.data;
       if (user == null) return LoginScreen(auth: auth);
-      return Dashboard(name: user.displayName ?? user.email ?? 'Patient');
+      return FutureBuilder<IdTokenResult>(
+        future: user.getIdTokenResult(true),
+        builder: (context, claims) {
+          if (!claims.hasData) {
+            return const Scaffold(body: Center(child: CircularProgressIndicator()));
+          }
+          final role = claims.data!.claims?['role'] as String? ?? 'patient';
+          if (role == 'admin') return AdminDashboard(auth: auth);
+          if (role == 'driver') return DriverDashboard(auth: auth);
+          return Dashboard(name: user.displayName ?? user.email ?? 'Patient', auth: auth);
+        },
+      );
     },
   );
 }
