@@ -35,6 +35,22 @@ class ApiService {
     return data.cast<Map<String, dynamic>>();
   }
 
+  Future<List<Map<String, dynamic>>> getDoctors() async => _decodeList(
+    await http.get(
+      Uri.parse('$baseUrl/directory/doctors'),
+      headers: await _headers(),
+    ),
+    'Could not load doctors',
+  );
+
+  Future<List<Map<String, dynamic>>> getPharmacies() async => _decodeList(
+    await http.get(
+      Uri.parse('$baseUrl/directory/pharmacies'),
+      headers: await _headers(),
+    ),
+    'Could not load pharmacies',
+  );
+
   Future<Map<String, dynamic>> health() async {
     final response = await http.get(
       Uri.parse('$baseUrl/firebase-check'),

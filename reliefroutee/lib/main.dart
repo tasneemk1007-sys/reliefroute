@@ -1446,6 +1446,10 @@ class _CatalogueScreenState extends State<CatalogueScreen> {
           final prescriptionRequired =
               item['prescription_required'] == true ||
               item['prescriptionRequired'] == true;
+          final demoRecord = item['demo_record'] == true;
+          final priceText = demoRecord
+              ? 'Price not verified'
+              : _zar(_money(item['price']));
           return Card(
             child: ListTile(
               leading: const CircleAvatar(
@@ -1454,7 +1458,7 @@ class _CatalogueScreenState extends State<CatalogueScreen> {
               ),
               title: Text(item['name'] as String? ?? 'Medicine'),
               subtitle: Text(
-                '${available ? 'In stock ($stock)' : 'Unavailable'} • ${_zar(_money(item['price']))}'
+                '${available ? 'In stock ($stock)' : 'Unavailable'} • $priceText'
                 '${prescriptionRequired ? '\nPrescription required' : ''}',
               ),
               isThreeLine: prescriptionRequired,
@@ -1923,64 +1927,95 @@ class MedicalAidScreen extends StatelessWidget {
   );
 }
 
-class DoctorDirectoryScreen extends StatelessWidget {
+class DoctorDirectoryScreen extends StatefulWidget {
   const DoctorDirectoryScreen({super.key});
+
+  @override
+  State<DoctorDirectoryScreen> createState() => _DoctorDirectoryScreenState();
+}
+
+class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen> {
+  late final Future<List<Map<String, dynamic>>> doctors = const ApiService().getDoctors();
+  final search = TextEditingController();
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Find a doctor')),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const PageTitle(
-          'Available providers',
-          'Availability and bookings are not live',
+        const PageTitle('Available providers', 'Provider records from the ReliefRoute database.'),
+        const Text('Demo provider records are fictional and are not available for booking.'),
+        const SizedBox(height: 12),
+        TextField(
+          controller: search,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(labelText: 'Search name or specialty', prefixIcon: Icon(Icons.search)),
         ),
-        const TextField(
-          decoration: InputDecoration(
-            labelText: 'Search by specialty or location',
-            prefixIcon: Icon(Icons.search),
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...[
-          'Dr. Naledi Mokoena • General practitioner',
-          'Dr. Liam Naidoo • Family medicine',
-          'Dr. Amara Jacobs • Paediatrics',
-        ].map(
-          (doctor) => Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFD9F2F1),
-                child: Icon(Icons.person_outline, color: teal),
-              ),
-              title: Text(doctor.split(' • ').first),
-              subtitle: Text(
-                '${doctor.split(' • ').last}\nProvider • Cape Town',
-              ),
-              isThreeLine: true,
-              trailing: FilledButton(
-                onPressed: () => openExternalLink(
-                  context,
-                  'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(doctor)}',
-                  'Opening provider location',
-                ),
-                child: const Text('Map'),
-              ),
-            ),
-          ),
+        const SizedBox(height: 12),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: doctors,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const EmptyState(icon: Icons.error_outline, title: 'Doctors unavailable', message: 'Check the backend connection and try again.');
+            }
+            final query = search.text.trim().toLowerCase();
+            final records = (snapshot.data ?? const <Map<String, dynamic>>[])
+                .where((doctor) => query.isEmpty || '${doctor['name']} ${doctor['specialty']} ${doctor['practice_name']} ${doctor['address']}'.toLowerCase().contains(query))
+                .toList();
+            if (records.isEmpty) {
+              return const EmptyState(icon: Icons.person_search_outlined, title: 'No doctors found', message: 'No provider records are available yet.');
+            }
+            return Column(
+              children: records.map((doctor) {
+                final name = '${doctor['name'] ?? 'Provider'}';
+                final specialty = '${doctor['specialty'] ?? 'Specialty not listed'}';
+                final practice = '${doctor['practice_name'] ?? ''}';
+                final address = '${doctor['address'] ?? 'Address not listed'}';
+                final phone = '${doctor['phone'] ?? 'Phone not provided'}';
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.person_outline, color: teal)),
+                    title: Text(name),
+                    subtitle: Text('$specialty\n$practice - $address\n$phone'),
+                    isThreeLine: true,
+                    trailing: const Chip(label: Text('Demo only')),
+                  ),
+                );
+              }).toList(),
+            );
+          },
         ),
       ],
     ),
   );
 }
 
-class PharmacyDirectoryScreen extends StatelessWidget {
+class PharmacyDirectoryScreen extends StatefulWidget {
   const PharmacyDirectoryScreen({super.key});
-  static const pharmacies = [
-    'ReliefRoute Central Pharmacy • Johannesburg',
-    'Rosebank Community Pharmacy • Johannesburg',
-    'Cape Town Care Pharmacy • Cape Town',
-  ];
+
+  @override
+  State<PharmacyDirectoryScreen> createState() => _PharmacyDirectoryScreenState();
+}
+
+class _PharmacyDirectoryScreenState extends State<PharmacyDirectoryScreen> {
+  late final Future<List<Map<String, dynamic>>> pharmacies = const ApiService().getPharmacies();
+  final search = TextEditingController();
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1988,35 +2023,54 @@ class PharmacyDirectoryScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const PageTitle(
-          'Nearby pharmacies',
-          'Choose a pharmacy to view it on a map.',
+        const PageTitle('Pharmacy directory', 'Pharmacy records from the ReliefRoute database.'),
+        const Text('Demo pharmacy records are fictional and are not real locations or available stock.'),
+        const SizedBox(height: 12),
+        TextField(
+          controller: search,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(labelText: 'Search name or location', prefixIcon: Icon(Icons.search)),
         ),
-        ...pharmacies.map(
-          (pharmacy) => Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.local_pharmacy_outlined, color: teal),
-              ),
-              title: Text(pharmacy.split(' • ').first),
-              subtitle: Text(pharmacy.split(' • ').last),
-              trailing: IconButton(
-                tooltip: 'Open map',
-                icon: const Icon(Icons.open_in_new),
-                onPressed: () => openExternalLink(
-                  context,
-                  'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(pharmacy)}',
-                  'Opening pharmacy location',
-                ),
-              ),
-            ),
-          ),
+        const SizedBox(height: 12),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: pharmacies,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const EmptyState(icon: Icons.error_outline, title: 'Pharmacies unavailable', message: 'Check the backend connection and try again.');
+            }
+            final query = search.text.trim().toLowerCase();
+            final records = (snapshot.data ?? const <Map<String, dynamic>>[])
+                .where((pharmacy) => query.isEmpty || '${pharmacy['name']} ${pharmacy['city']} ${pharmacy['address']}'.toLowerCase().contains(query))
+                .toList();
+            if (records.isEmpty) {
+              return const EmptyState(icon: Icons.local_pharmacy_outlined, title: 'No pharmacies found', message: 'No pharmacy records are available yet.');
+            }
+            return Column(
+              children: records.map((pharmacy) {
+                final name = '${pharmacy['name'] ?? 'Pharmacy'}';
+                final city = '${pharmacy['city'] ?? ''}';
+                final address = '${pharmacy['address'] ?? 'Address not listed'}';
+                final phone = '${pharmacy['phone'] ?? 'Phone not provided'}';
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.local_pharmacy_outlined, color: teal)),
+                    title: Text(name),
+                    subtitle: Text('$address${city.isEmpty ? '' : ', $city'}\n$phone'),
+                    isThreeLine: true,
+                    trailing: const Chip(label: Text('Demo only')),
+                  ),
+                );
+              }).toList(),
+            );
+          },
         ),
       ],
     ),
   );
 }
-
 Future<void> openExternalLink(
   BuildContext context,
   String value,

@@ -9,7 +9,8 @@ physical disability.
 
 - Frontend: Flutter and Dart
 - Backend: Java and Spring Boot
-- Database: Firebase Cloud Firestore
+- Database: MySQL for catalogue, providers and orders; Firestore for profiles,
+  carts and live delivery location
 - Authentication: Firebase Authentication
 - Storage: Firebase Storage
 - Maps: OpenStreetMap tiles with `flutter_map`
