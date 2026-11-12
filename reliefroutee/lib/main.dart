@@ -14,12 +14,36 @@ import 'patient_screens.dart';
 import 'patient_data_service.dart';
 import 'role_dashboards.dart';
 import 'live_cart_service.dart';
+import 'models.dart';
 
 import 'package:url_launcher/url_launcher.dart';
 
 const teal = Color(0xFF087F8C);
 const darkTeal = Color(0xFF123047);
 final liveCart = LiveCartService();
+bool _firebaseReady = false;
+
+double _money(Object? value) => value is num
+    ? value.toDouble()
+    : double.tryParse('$value') ?? 0;
+
+int _stock(Object? value) => value is num
+    ? value.toInt()
+    : int.tryParse('$value') ?? 0;
+
+Medicine _cartMedicine(String id, Map<String, dynamic> data) => Medicine(
+  id: id,
+  name: '${data['name'] ?? 'Medicine'}',
+  description: '${data['description'] ?? ''}',
+  category: '${data['category'] ?? 'Other'}',
+  price: _money(data['price']),
+  prescriptionOnly: data['prescription_required'] == true ||
+      data['prescriptionRequired'] == true,
+  available: data['active'] != false && _stock(data['stock_quantity']) > 0,
+  stockQuantity: _stock(data['stock_quantity']),
+);
+
+String _zar(double value) => 'R${value.toStringAsFixed(2)}';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Firebase.apps.isEmpty) {
@@ -27,6 +51,7 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
+  _firebaseReady = true;
   runApp(const ReliefRouteApp());
 }
 
@@ -630,10 +655,11 @@ class Dashboard extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
       actions: [
-        IconButton(
-          tooltip: 'Cart',
-          icon: const Icon(Icons.shopping_bag_outlined),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
+        _CartButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CartScreen()),
+          ),
         ),
         IconButton(
           onPressed: () =>
@@ -1299,32 +1325,73 @@ class _MetricCard extends StatelessWidget {
 
 class CatalogueScreen extends StatefulWidget {
   const CatalogueScreen({super.key});
-  @override State<CatalogueScreen> createState() => _CatalogueScreenState();
+  @override
+  State<CatalogueScreen> createState() => _CatalogueScreenState();
 }
+
 class _CatalogueScreenState extends State<CatalogueScreen> {
   final search = TextEditingController();
   final api = const ApiService();
   List<Map<String, dynamic>> medicines = [];
   bool loading = true;
-  @override void initState() { super.initState(); _load(); }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
   Future<void> _load() async {
+    setState(() => loading = true);
     try {
       final values = await api.getMedicines(query: search.text);
       if (mounted) setState(() { medicines = values; loading = false; });
     } catch (error) {
-      if (mounted) { setState(() => loading = false); showMessage(context, 'Could not load medicines. Check the backend connection.'); }
+      if (mounted) {
+        setState(() => loading = false);
+        showMessage(context, 'Could not load medicines: $error');
+      }
     }
   }
-  @override void dispose() { search.dispose(); super.dispose(); }
+
+  Future<void> _addToCart(Map<String, dynamic> item) async {
+    try {
+      await liveCart.add({
+        ...item,
+        'id': '${item['id'] ?? item['public_id'] ?? ''}',
+        'name': '${item['name'] ?? 'Medicine'}',
+        'price': _money(item['price']),
+        'stock_quantity': _stock(item['stock_quantity']),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Added to your cart')),
+        );
+      }
+    } catch (error) {
+      if (mounted) showMessage(context, 'Could not add this medicine: $error');
+    }
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Medicine catalogue'), actions: [
-      IconButton(
-        tooltip: 'Cart',
-        icon: const Icon(Icons.shopping_bag_outlined),
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
-      ),
-    ]),
+    appBar: AppBar(
+      title: const Text('Medicine catalogue'),
+      actions: [
+        _CartButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CartScreen()),
+          ),
+        ),
+      ],
+    ),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -1333,110 +1400,349 @@ class _CatalogueScreenState extends State<CatalogueScreen> {
           onSubmitted: (_) => _load(),
           decoration: InputDecoration(
             labelText: 'Search medicines',
-            prefixIcon: Icon(Icons.search),
+            prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(onPressed: _load, icon: const Icon(Icons.search)),
           ),
         ),
         const SizedBox(height: 16),
         if (loading) const Center(child: CircularProgressIndicator()),
-        if (!loading && medicines.isEmpty) const EmptyState(icon: Icons.medication_outlined, title: 'No medicines found', message: 'Try another medicine or category.'),
-        ...medicines.map(
-          (item) => Card(
+        if (!loading && medicines.isEmpty)
+          const EmptyState(
+            icon: Icons.medication_outlined,
+            title: 'No medicines found',
+            message: 'Try another medicine or category.',
+          ),
+        ...medicines.map((item) {
+          final stock = _stock(item['stock_quantity']);
+          final available = item['active'] != false && stock > 0;
+          final prescriptionRequired =
+              item['prescription_required'] == true ||
+              item['prescriptionRequired'] == true;
+          return Card(
             child: ListTile(
               leading: const CircleAvatar(
                 backgroundColor: Color(0xFFE5F6F2),
                 child: Icon(Icons.medication_outlined, color: teal),
               ),
               title: Text(item['name'] as String? ?? 'Medicine'),
-              subtitle: const Text('Availability • prices shown in ZAR'),
-              trailing: FilledButton(
-                onPressed: (item['stock_quantity'] ?? 1) == 0 ? null : () {
-                  liveCart.add({...item, 'id': '${item['id']}', 'name': '${item['name']}', 'price': double.tryParse('${item['price'] ?? 0}') ?? 0});
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Added to your live cart')));
-                }, child: const Text('Add')),
-              onTap: () {},
+              subtitle: Text(
+                '${available ? 'In stock ($stock)' : 'Unavailable'} • ${_zar(_money(item['price']))}'
+                '${prescriptionRequired ? '\nPrescription required' : ''}',
+              ),
+              isThreeLine: prescriptionRequired,
+              trailing: FilledButton.icon(
+                onPressed: !available || prescriptionRequired
+                    ? null
+                    : () => _addToCart(item),
+                icon: const Icon(Icons.add_shopping_cart),
+                label: Text(prescriptionRequired ? 'Prescription' : 'Add to cart'),
+              ),
             ),
+          );
+        }),
+      ],
+    ),
+  );
+}
+class _CartButton extends StatelessWidget {
+  const _CartButton({required this.onPressed});
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final openCart = IconButton(
+      tooltip: 'Shopping cart',
+      onPressed: onPressed,
+      icon: const Icon(Icons.shopping_cart_outlined),
+    );
+    if (!_firebaseReady) return openCart;
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: liveCart.watch(),
+      builder: (context, snapshot) {
+        final count = snapshot.data?.docs.fold<int>(
+              0,
+              (itemCount, doc) => itemCount + _stock(doc.data()['quantity']),
+            ) ??
+            0;
+        return IconButton(
+          tooltip: 'Shopping cart',
+          onPressed: onPressed,
+          icon: Badge(
+            isLabelVisible: count > 0,
+            label: Text('$count'),
+            child: const Icon(Icons.shopping_cart_outlined),
           ),
+        );
+      },
+    );
+  }
+}
+class CartScreen extends StatelessWidget {
+  const CartScreen({super.key});
+
+  Future<void> _change(BuildContext context, String id, int quantity) async {
+    try {
+      await liveCart.change(id, quantity);
+    } catch (error) {
+      if (context.mounted) showMessage(context, 'Could not update cart: $error');
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Your cart')),
+    body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: liveCart.watch(),
+      builder: (context, snapshot) {
+        final docs = snapshot.data?.docs ?? [];
+        if (snapshot.hasError) {
+          return const EmptyState(
+            icon: Icons.error_outline,
+            title: 'Cart unavailable',
+            message: 'Please sign in again and retry.',
+          );
+        }
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (docs.isEmpty) {
+          return const EmptyState(
+            icon: Icons.shopping_bag_outlined,
+            title: 'Your cart is empty',
+            message: 'Add medicines from the shop to get started.',
+          );
+        }
+
+        final lines = docs.map((doc) {
+          final data = doc.data();
+          return MapEntry(
+            doc.id,
+            CartLine(_cartMedicine(doc.id, data), quantity: _stock(data['quantity'])),
+          );
+        }).toList();
+        final subtotal = lines.fold<double>(
+          0,
+          (subtotal, entry) => subtotal + entry.value.total,
+        );
+        const fee = 35.0;
+        final hasPrescription = lines.any((entry) => entry.value.medicine.prescriptionOnly);
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            ...lines.map((entry) {
+              final line = entry.value;
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(line.medicine.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text('${_zar(line.medicine.price)} each'),
+                            Text('Line total: ${_zar(line.total)}'),
+                            if (line.medicine.prescriptionOnly)
+                              const Text('Prescription required before checkout'),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Decrease quantity',
+                        onPressed: () => _change(context, entry.key, line.quantity - 1),
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Text('${line.quantity}'),
+                      IconButton(
+                        tooltip: 'Increase quantity',
+                        onPressed: line.quantity < line.medicine.stockQuantity
+                            ? () => _change(context, entry.key, line.quantity + 1)
+                            : null,
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                      IconButton(
+                        tooltip: 'Remove item',
+                        onPressed: () => _change(context, entry.key, 0),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 12),
+            _CartTotalRow(label: 'Subtotal', value: _zar(subtotal)),
+            _CartTotalRow(label: 'Delivery fee', value: _zar(fee)),
+            _CartTotalRow(label: 'Total', value: _zar(subtotal + fee), strong: true),
+            if (hasPrescription)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('A pharmacist must review prescription items before they can be ordered.'),
+              ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: hasPrescription
+                  ? null
+                  : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                    ),
+              icon: const Icon(Icons.lock_outline),
+              label: const Text('Continue to checkout'),
+            ),
+          ],
+        );
+      },
+    ),
+  );
+}
+
+class _CartTotalRow extends StatelessWidget {
+  const _CartTotalRow({required this.label, required this.value, this.strong = false});
+  final String label;
+  final String value;
+  final bool strong;
+
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      children: [
+        Expanded(child: Text(label, style: TextStyle(fontWeight: strong ? FontWeight.bold : null))),
+        Text(value, style: TextStyle(fontWeight: strong ? FontWeight.bold : null)),
+      ],
+    ),
+  );
+}
+class CheckoutScreen extends StatefulWidget {
+  const CheckoutScreen({super.key});
+  @override
+  State<CheckoutScreen> createState() => _CheckoutScreenState();
+}
+
+class _CheckoutScreenState extends State<CheckoutScreen> {
+  final address = TextEditingController();
+  bool placing = false;
+
+  @override
+  void dispose() {
+    address.dispose();
+    super.dispose();
+  }
+
+  Future<void> _place() async {
+    if (address.text.trim().length < 8) {
+      showMessage(context, 'Please enter a complete delivery address.');
+      return;
+    }
+    setState(() => placing = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw StateError('Sign in before placing an order.');
+      final cartDocs = (await liveCart.items.get()).docs;
+      if (cartDocs.isEmpty) throw StateError('Your cart is empty.');
+      if (cartDocs.any((doc) =>
+          doc.data()['prescription_required'] == true ||
+          doc.data()['prescriptionRequired'] == true)) {
+        throw StateError('Prescription items require pharmacist review.');
+      }
+      final result = await const ApiService().placeOrder(
+        userId: user.uid,
+        address: address.text.trim(),
+        items: cartDocs
+            .map((doc) => {
+                  'medication_id': doc.id,
+                  'quantity': _stock(doc.data()['quantity']),
+                })
+            .toList(),
+      );
+      final reference = '${result['reference'] ?? result['id'] ?? ''}'.trim();
+      if (reference.isEmpty) {
+        throw const FormatException('The server did not return an order reference.');
+      }
+      final total = _money(result['total']);
+      await liveCart.clear();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OrderConfirmationScreen(reference: reference, total: total),
+        ),
+        (route) => route.isFirst,
+      );
+    } catch (error) {
+      if (mounted) {
+        showMessage(context, 'Could not place the order: $error');
+        setState(() => placing = false);
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Checkout')),
+    body: ListView(
+      padding: const EdgeInsets.all(20),
+      children: [
+        const PageTitle('Delivery details', 'Where should we bring your order?'),
+        TextField(
+          controller: address,
+          maxLines: 3,
+          decoration: const InputDecoration(
+            labelText: 'Delivery address',
+            hintText: 'Street, suburb and city',
+          ),
+        ),
+        const SizedBox(height: 16),
+        const Text(
+          'The server checks current prices and stock and calculates the final total when you place the order.',
+        ),
+        const SizedBox(height: 16),
+        FilledButton(
+          onPressed: placing ? null : _place,
+          child: Text(placing ? 'Placing order...' : 'Place order'),
         ),
       ],
     ),
   );
 }
 
-class CartScreen extends StatefulWidget {
-  const CartScreen({super.key});
-  @override State<CartScreen> createState() => _CartScreenState();
-}
+class OrderConfirmationScreen extends StatelessWidget {
+  const OrderConfirmationScreen({super.key, required this.reference, required this.total});
+  final String reference;
+  final double total;
 
-class _CartScreenState extends State<CartScreen> {
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Your cart')), body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(stream: liveCart.watch(), builder: (context, snapshot) {
-    final docs = snapshot.data?.docs ?? [];
-    if (snapshot.hasError) return const EmptyState(icon: Icons.error_outline, title: 'Cart unavailable', message: 'Please sign in again and retry.');
-    if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
-    if (docs.isEmpty) return const EmptyState(icon: Icons.shopping_bag_outlined, title: 'Your cart is empty', message: 'Add medicines from the shop to get started.');
-    final subtotal = docs.fold<double>(0, (sum, d) => sum + (double.tryParse('${d.data()['price'] ?? 0}') ?? 0) * ((d.data()['quantity'] ?? 0) as num).toDouble());
-    return ListView(padding: const EdgeInsets.all(20), children: [...docs.map((d) { final x = d.data(); final q = (x['quantity'] ?? 1) as num; return Card(child: ListTile(title: Text('${x['name']}'), subtitle: Text(zar((double.tryParse('${x['price'] ?? 0}') ?? 0) * q.toDouble())), leading: CircleAvatar(child: Text('$q')), trailing: Row(mainAxisSize: MainAxisSize.min, children: [IconButton(onPressed: () => liveCart.change(d.id, q.toInt() - 1), icon: const Icon(Icons.remove_circle_outline)), IconButton(onPressed: () => liveCart.change(d.id, q.toInt() + 1), icon: const Icon(Icons.add_circle_outline))]))); }), const SizedBox(height: 12), Card(child: ListTile(title: const Text('Total'), trailing: Text(zar(subtotal + 35), style: const TextStyle(fontWeight: FontWeight.bold)))), const SizedBox(height: 12), FilledButton.icon(onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CheckoutScreen())), icon: const Icon(Icons.lock_outline), label: const Text('Continue to checkout'))]);
-  });
-}
-
-class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
-  @override State<CheckoutScreen> createState() => _CheckoutScreenState();
-}
-class _CheckoutScreenState extends State<CheckoutScreen> {
-  final address = TextEditingController();
-  final promo = TextEditingController();
-  bool placing = false;
-  String pharmacy = 'ReliefRoute Central Pharmacy';
-  String payment = 'Cash on delivery';
-  bool promoApplied = false;
-  @override void dispose() { address.dispose(); promo.dispose(); super.dispose(); }
-  Future<void> _place() async {
-    if (address.text.trim().isEmpty) { showMessage(context, 'Please enter a delivery address.'); return; }
-    setState(() => placing = true);
-    String reference;
-    try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw StateError('not signed in');
-      final cartDocs = (await liveCart.items.get()).docs;
-      final result = await const ApiService().placeOrder(
-        userId: user.uid, address: address.text.trim(),
-        items: cartDocs.map((doc) => {'medication_id': doc.id, 'quantity': doc.data()['quantity']}).toList());
-      reference = '${result['reference'] ?? result['id']}';
-      await liveCart.clear();
-    } catch (_) {
-      if (mounted) showMessage(context, 'Could not place the order. Please check your connection and try again.');
-      if (mounted) setState(() => placing = false);
-      return;
-    }
-    if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => OrderConfirmationScreen(reference: reference)), (route) => route.isFirst);
-  }
-  @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Checkout')),
-    body: ListView(padding: const EdgeInsets.all(20), children: [
-      const PageTitle('Delivery details', 'Where should we bring your order?'),
-      DropdownButtonFormField<String>(value: pharmacy, decoration: const InputDecoration(labelText: 'Choose a pharmacy'), items: const [DropdownMenuItem(value: 'ReliefRoute Central Pharmacy', child: Text('ReliefRoute Central Pharmacy • 1.2 km')), DropdownMenuItem(value: 'Campus Care Pharmacy', child: Text('Campus Care Pharmacy • 2.4 km')), DropdownMenuItem(value: 'Rosebank Community Pharmacy', child: Text('Rosebank Community Pharmacy • 4.1 km'))], onChanged: (v) => setState(() => pharmacy = v!)),
-      const SizedBox(height: 12),
-      TextField(controller: address, maxLines: 3, decoration: const InputDecoration(labelText: 'Delivery address', hintText: 'Street, suburb and city')),
-      const SizedBox(height: 8),
-      OutlinedButton.icon(onPressed: () { address.text = 'Campus Residence, Main Campus'; }, icon: const Icon(Icons.bookmark_outline), label: const Text('Use saved campus address')),
-      const SizedBox(height: 16),
-      DropdownButtonFormField<String>(value: payment, decoration: const InputDecoration(labelText: 'Payment method'), items: const [DropdownMenuItem(value: 'Cash on delivery', child: Text('Cash on delivery')), DropdownMenuItem(value: 'Card payment', child: Text('Card payment (simulated)')), DropdownMenuItem(value: 'Medical aid', child: Text('Medical aid claim (simulated)'))], onChanged: (v) => setState(() => payment = v!)),
-      const SizedBox(height: 12),
-      Row(children: [Expanded(child: TextField(controller: promo, decoration: const InputDecoration(labelText: 'Promo code', hintText: 'CAMPUS10'))), const SizedBox(width: 8), OutlinedButton(onPressed: () { if (promo.text.trim().toUpperCase() == 'CAMPUS10') { setState(() => promoApplied = true); showMessage(context, 'Promo applied: 10% campus discount'); } else showMessage(context, 'Try promo code CAMPUS10'); }, child: const Text('Apply'))]),
-      if (promoApplied) const ListTile(leading: Icon(Icons.discount_outlined, color: teal), title: Text('Campus discount applied'), subtitle: Text('10% off your demo order')),
-      const SizedBox(height: 12),
-      FilledButton(onPressed: placing ? null : _place, child: Text(placing ? 'Placing order...' : 'Place order')),
-    ]),
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Order confirmed')),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: teal, size: 72),
+            const SizedBox(height: 16),
+            const Text(
+              'Your order has been received',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text('Order reference: $reference'),
+            const SizedBox(height: 6),
+            Text('Order total: ${_zar(total)}'),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Back to shop'),
+            ),
+          ],
+        ),
+      ),
+    ),
   );
 }
-
-class OrderConfirmationScreen extends StatelessWidget {
-  final String reference;
-  const OrderConfirmationScreen({super.key, required this.reference});
-  @override Widget build(BuildContext context) => Scaffold(appBar: AppBar(title: const Text('Order confirmed')), body: Center(child: Padding(padding: const EdgeInsets.all(28), child: Column(mainAxisSize: MainAxisSize.min, children: [const Icon(Icons.check_circle, color: teal, size: 72), const SizedBox(height: 16), const Text('Your order is on its way', style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold)), const SizedBox(height: 8), Text('Reference $reference'), const SizedBox(height: 8), const Chip(avatar: Icon(Icons.local_shipping_outlined), label: Text('Driver assigned • 18 min away')), const SizedBox(height: 16), OutlinedButton.icon(onPressed: () => showDialog(context: context, builder: (_) => AlertDialog(title: const Text('Rate your delivery'), content: const Text('How was your campus delivery?'), actions: [TextButton(onPressed: () => Navigator.pop(context), child: const Text('1')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('2')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('3')), TextButton(onPressed: () => Navigator.pop(context), child: const Text('4')), TextButton(onPressed: () { Navigator.pop(context); showMessage(context, 'Thanks for rating your delivery.'); }, child: const Text('5'))])), icon: const Icon(Icons.star_outline), label: const Text('Rate delivery')), OutlinedButton.icon(onPressed: () => showMessage(context, 'Demo cancellation: order marked for cancellation.'), icon: const Icon(Icons.cancel_outlined), label: const Text('Cancel order')), const SizedBox(height: 8), FilledButton(onPressed: () => Navigator.pop(context), child: const Text('Back to shop'))])));
-}
-
 class MedicalAidScreen extends StatelessWidget {
   const MedicalAidScreen({super.key});
   @override

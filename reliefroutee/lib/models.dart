@@ -9,6 +9,7 @@ class Medicine {
   final double price;
   final bool prescriptionOnly;
   final bool available;
+  final int stockQuantity;
   bool favourite;
   Medicine({
     required this.id,
@@ -18,6 +19,7 @@ class Medicine {
     required this.price,
     this.prescriptionOnly = false,
     this.available = true,
+    this.stockQuantity = 0,
     this.favourite = false,
   });
 }
