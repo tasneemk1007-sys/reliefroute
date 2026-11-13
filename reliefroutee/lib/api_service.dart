@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 class ApiService {
   const ApiService({
@@ -14,12 +15,26 @@ class ApiService {
   final String baseUrl;
 
   Future<Map<String, String>> _headers({bool json = false}) async {
-    final headers = <String, String>{'Accept': 'application/json'};
-    if (json) headers['Content-Type'] = 'application/json';
-    final token = await FirebaseAuth.instance.currentUser?.getIdToken();
-    if (token != null) headers['Authorization'] = 'Bearer $token';
-    return headers;
+  final headers = <String, String>{'Accept': 'application/json'};
+
+  if (json) headers['Content-Type'] = 'application/json';
+
+  final user = FirebaseAuth.instance.currentUser;
+
+  debugPrint('[ReliefRoute] Firebase user signed in: ${user != null}');
+
+  final token = await user?.getIdToken();
+
+  debugPrint(
+    '[ReliefRoute] Firebase ID token obtained: ${token != null && token.isNotEmpty}',
+  );
+
+  if (token != null) {
+    headers['Authorization'] = 'Bearer $token';
   }
+
+  return headers;
+}
 
   Future<List<Map<String, dynamic>>> getMedicines({String query = ''}) async {
     final uri = Uri.parse('$baseUrl/medications').replace(
@@ -28,8 +43,14 @@ class ApiService {
     final response = await http
         .get(uri, headers: await _headers())
         .timeout(const Duration(seconds: 5));
+
+        debugPrint('[Medicines] URL: $uri');
+        debugPrint('[Medicines] Status: ${response.statusCode}');
+        debugPrint('[Medicines] Response: ${response.body}');
+
     if (response.statusCode != 200) {
-      throw Exception('Medicine request failed (${response.statusCode})');
+  throw Exception(
+    'Medicine request failed (${response.statusCode}): ${response.body}', );
     }
     final data = jsonDecode(response.body) as List<dynamic>;
     return data.cast<Map<String, dynamic>>();

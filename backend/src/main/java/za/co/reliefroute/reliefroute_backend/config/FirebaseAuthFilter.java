@@ -54,7 +54,10 @@ public class FirebaseAuthFilter extends OncePerRequestFilter {
             }
             chain.doFilter(request, response);
         } catch (Exception e) {
-            response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired Firebase token");
-        }
+    System.err.println("[ReliefRoute] Firebase token verification failed: "
+            + e.getClass().getName() + ": " + e.getMessage());
+
+    response.sendError(HttpServletResponse.SC_UNAUTHORIZED, "Invalid or expired Firebase token");
+}
     }
 }
