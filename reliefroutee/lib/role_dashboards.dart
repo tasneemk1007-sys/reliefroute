@@ -39,7 +39,7 @@ class _DriverDashboardState extends State<DriverDashboard> {
       const SizedBox(height: 8),
       const Text('Share your live location only while carrying an assigned order.'),
       const SizedBox(height: 20),
-      TextField(controller: order, decoration: const InputDecoration(labelText: 'Assigned order ID')),
+      TextField(controller: order, decoration: const InputDecoration(labelText: 'Assigned order reference')),
       const SizedBox(height: 12),
       FilledButton.icon(onPressed: toggleSharing, icon: Icon(sharing ? Icons.stop : Icons.location_on), label: Text(sharing ? 'Stop sharing location' : 'Start delivery tracking')),
       if (sharing) const Card(child: ListTile(leading: Icon(Icons.circle, color: Colors.green), title: Text('Location sharing is active'), subtitle: Text('The customer can now see your position.'))),

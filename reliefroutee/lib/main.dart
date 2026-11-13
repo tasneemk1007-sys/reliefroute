@@ -21,6 +21,29 @@ import 'package:url_launcher/url_launcher.dart';
 const teal = Color(0xFF087F8C);
 const darkTeal = Color(0xFF123047);
 final liveCart = LiveCartService();
+bool _firebaseReady = false;
+
+double _money(Object? value) => value is num
+    ? value.toDouble()
+    : double.tryParse('$value') ?? 0;
+
+int _stock(Object? value) => value is num
+    ? value.toInt()
+    : int.tryParse('$value') ?? 0;
+
+Medicine _cartMedicine(String id, Map<String, dynamic> data) => Medicine(
+  id: id,
+  name: '${data['name'] ?? 'Medicine'}',
+  description: '${data['description'] ?? ''}',
+  category: '${data['category'] ?? 'Other'}',
+  price: _money(data['price']),
+  prescriptionOnly: data['prescription_required'] == true ||
+      data['prescriptionRequired'] == true,
+  available: data['active'] != false && _stock(data['stock_quantity']) > 0,
+  stockQuantity: _stock(data['stock_quantity']),
+);
+
+String _zar(double value) => 'R${value.toStringAsFixed(2)}';
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   if (Firebase.apps.isEmpty) {
@@ -28,6 +51,7 @@ Future<void> main() async {
       options: DefaultFirebaseOptions.currentPlatform,
     );
   }
+  _firebaseReady = true;
   runApp(const ReliefRouteApp());
 }
 
@@ -69,21 +93,21 @@ class ReliefRouteApp extends StatelessWidget {
         ),
       ),
       filledButtonTheme: FilledButtonThemeData(
-  style: FilledButton.styleFrom(
-    minimumSize: const Size(0, 50),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(15),
-    ),
-  ),
-),
-outlinedButtonTheme: OutlinedButtonThemeData(
-  style: OutlinedButton.styleFrom(
-    minimumSize: const Size(0, 50),
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(15),
-    ),
-  ),
-),
+        style: FilledButton.styleFrom(
+          minimumSize: const Size(0, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+      ),
+      outlinedButtonTheme: OutlinedButtonThemeData(
+        style: OutlinedButton.styleFrom(
+          minimumSize: const Size(0, 50),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(15),
+          ),
+        ),
+      ),
     ),
     home: AuthGate(auth: auth),
   );
@@ -631,10 +655,11 @@ class Dashboard extends StatelessWidget {
         style: TextStyle(fontWeight: FontWeight.bold),
       ),
       actions: [
-        IconButton(
-          tooltip: 'Cart',
-          icon: const Icon(Icons.shopping_bag_outlined),
-          onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
+        _CartButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CartScreen()),
+          ),
         ),
         IconButton(
           onPressed: () =>
@@ -940,6 +965,11 @@ class Dashboard extends StatelessWidget {
             context,
             MaterialPageRoute(builder: (_) => const PatientProfileScreen()),
           );
+        } else if (index == 5) {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const ComingSoonTabsScreen()),
+          );
         }
       },
       destinations: const [
@@ -964,7 +994,83 @@ class Dashboard extends StatelessWidget {
           icon: Icon(Icons.person_outline),
           label: 'Profile',
         ),
+        NavigationDestination(
+          icon: Icon(Icons.more_horiz),
+          label: 'More',
+        ),
       ],
+    ),
+  );
+}
+
+class ComingSoonTabsScreen extends StatelessWidget {
+  const ComingSoonTabsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) => DefaultTabController(
+    length: 3,
+    child: Scaffold(
+      appBar: AppBar(
+        title: const Text('Coming soon'),
+        bottom: const TabBar(
+          isScrollable: true,
+          tabs: [
+            Tab(icon: Icon(Icons.payment_outlined), text: 'Payments'),
+            Tab(icon: Icon(Icons.my_location_outlined), text: 'Live tracking'),
+            Tab(icon: Icon(Icons.fact_check_outlined), text: 'Prescription review'),
+          ],
+        ),
+      ),
+      body: const TabBarView(
+        children: [
+          _ComingSoonFeature(
+            icon: Icons.payment_outlined,
+            title: 'Payments',
+            message: 'Secure in-app payment options are coming soon.',
+          ),
+          _ComingSoonFeature(
+            icon: Icons.my_location_outlined,
+            title: 'Live delivery tracking',
+            message: 'Real-time driver location and delivery progress are coming soon.',
+          ),
+          _ComingSoonFeature(
+            icon: Icons.fact_check_outlined,
+            title: 'Prescription review',
+            message: 'Pharmacist review and approval of prescription orders are coming soon.',
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
+class _ComingSoonFeature extends StatelessWidget {
+  const _ComingSoonFeature({
+    required this.icon,
+    required this.title,
+    required this.message,
+  });
+
+  final IconData icon;
+  final String title;
+  final String message;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Padding(
+      padding: const EdgeInsets.all(28),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 56, color: teal),
+          const SizedBox(height: 16),
+          Text(title, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 8),
+          const Chip(label: Text('Coming soon')),
+          const SizedBox(height: 8),
+          Text(message, textAlign: TextAlign.center),
+        ],
+      ),
     ),
   );
 }
@@ -1135,77 +1241,24 @@ class _OrderTrackingState extends State<OrderTrackingScreen> {
         const SizedBox(height: 18),
         TextField(controller: reference, textCapitalization: TextCapitalization.characters, decoration: InputDecoration(labelText: 'Order reference', hintText: 'e.g. RR-AB12CD34', suffixIcon: IconButton(onPressed: loading ? null : track, icon: const Icon(Icons.search)))),
         const SizedBox(height: 10),
-        FilledButton.icon(onPressed: loading ? null : track, icon: const Icon(Icons.location_searching), label: Text(loading ? 'Looking up...' : 'Track live order')),
-        if (order?['id'] != null) OpenStreetMapTracking(orderId: '${order!['id']}'),
+        FilledButton.icon(onPressed: loading ? null : track, icon: const Icon(Icons.search), label: Text(loading ? 'Looking up...' : 'View order status')),
+        if (order?['reference'] != null)
+          OpenStreetMapTracking(orderId: '${order!['reference']}'),
         Card(
           child: ListTile(
             leading: const Icon(Icons.local_shipping_outlined, color: teal),
             title: Text('Order #${order?['reference'] ?? reference.text.trim()}'),
-            subtitle: const Text('Arriving today, 14:00–16:00'),
+            subtitle: Text(order == null ? 'Enter an order reference to see its status.' : 'Status from your order'),
             trailing: Chip(label: Text('${order?['status'] ?? 'Enter a reference'}')),
           ),
         ),
-        const SizedBox(height: 22),
-        const Text(
-          'Delivery progress',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-        ),
-        const SizedBox(height: 12),
-        const _ProgressStep(
-          'Order confirmed',
-          'Your order has been received.',
-          true,
-        ),
-        const _ProgressStep(
-          'Preparing your order',
-          'Pharmacy team is packing your items.',
-          true,
-        ),
-        const _ProgressStep(
-          'On the way',
-          'Your rider is heading to you.',
-          true,
-        ),
-        const _ProgressStep(
-          'Delivered',
-          'We will notify you when it arrives.',
-          false,
-        ),
-        const SizedBox(height: 16),
-        Card(
-          color: const Color(0xFFE5F6F2),
-          child: const ListTile(
-            leading: CircleAvatar(child: Text('TB')),
-            title: Text('Your delivery partner'),
-            subtitle: Text('Thabo M. · Contact rider'),
+        if (order != null)
+          const Padding(
+            padding: EdgeInsets.only(top: 12),
+            child: Text('A live map appears after a driver is assigned and starts sharing location.'),
           ),
-        ),
-        OutlinedButton(
-          onPressed: () => showMessage(context, 'Support request started.'),
-          child: const Text('Need help with this order? Contact support'),
-        ),
       ],
     ),
-  );
-}
-
-class _ProgressStep extends StatelessWidget {
-  final String title, detail;
-  final bool complete;
-  const _ProgressStep(this.title, this.detail, this.complete);
-  @override
-  Widget build(BuildContext context) => ListTile(
-    leading: CircleAvatar(
-      radius: 12,
-      backgroundColor: complete ? teal : Colors.white,
-      child: Icon(
-        complete ? Icons.check : Icons.circle_outlined,
-        size: 15,
-        color: complete ? Colors.white : Colors.grey,
-      ),
-    ),
-    title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
-    subtitle: Text(detail),
   );
 }
 
@@ -1300,32 +1353,73 @@ class _MetricCard extends StatelessWidget {
 
 class CatalogueScreen extends StatefulWidget {
   const CatalogueScreen({super.key});
-  @override State<CatalogueScreen> createState() => _CatalogueScreenState();
+  @override
+  State<CatalogueScreen> createState() => _CatalogueScreenState();
 }
+
 class _CatalogueScreenState extends State<CatalogueScreen> {
   final search = TextEditingController();
   final api = const ApiService();
   List<Map<String, dynamic>> medicines = [];
   bool loading = true;
-  @override void initState() { super.initState(); _load(); }
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
   Future<void> _load() async {
+    setState(() => loading = true);
     try {
       final values = await api.getMedicines(query: search.text);
       if (mounted) setState(() { medicines = values; loading = false; });
     } catch (error) {
-      if (mounted) { setState(() => loading = false); showMessage(context, 'Could not load medicines: $error'); }
+      if (mounted) {
+        setState(() => loading = false);
+        showMessage(context, 'Could not load medicines: $error');
+      }
     }
   }
-  @override void dispose() { search.dispose(); super.dispose(); }
+
+  Future<void> _addToCart(Map<String, dynamic> item) async {
+    try {
+      await liveCart.add({
+        ...item,
+        'id': '${item['id'] ?? item['public_id'] ?? ''}',
+        'name': '${item['name'] ?? 'Medicine'}',
+        'price': _money(item['price']),
+        'stock_quantity': _stock(item['stock_quantity']),
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Added to your cart')),
+        );
+      }
+    } catch (error) {
+      if (mounted) showMessage(context, 'Could not add this medicine: $error');
+    }
+  }
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Medicine catalogue'), actions: [
-      IconButton(
-        tooltip: 'Cart',
-        icon: const Icon(Icons.shopping_bag_outlined),
-        onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => const CartScreen())),
-      ),
-    ]),
+    appBar: AppBar(
+      title: const Text('Medicine catalogue'),
+      actions: [
+        _CartButton(
+          onPressed: () => Navigator.push(
+            context,
+            MaterialPageRoute(builder: (_) => const CartScreen()),
+          ),
+        ),
+      ],
+    ),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -1334,335 +1428,453 @@ class _CatalogueScreenState extends State<CatalogueScreen> {
           onSubmitted: (_) => _load(),
           decoration: InputDecoration(
             labelText: 'Search medicines',
-            prefixIcon: Icon(Icons.search),
+            prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(onPressed: _load, icon: const Icon(Icons.search)),
           ),
         ),
         const SizedBox(height: 16),
         if (loading) const Center(child: CircularProgressIndicator()),
-        if (!loading && medicines.isEmpty) const EmptyState(icon: Icons.medication_outlined, title: 'No medicines found', message: 'Try another medicine or category.'),
+        if (!loading && medicines.isEmpty)
+          const EmptyState(
+            icon: Icons.medication_outlined,
+            title: 'No medicines found',
+            message: 'Try another medicine or category.',
+          ),
         ...medicines.map((item) {
-  final stock =
-      int.tryParse('${item['stock_quantity'] ?? 0}') ?? 0;
-
-  final price =
-      double.tryParse('${item['price'] ?? 0}') ?? 0;
-
-  final prescriptionRequired =
-      item['prescription_required'] == true ||
-      item['prescription_required'] == 1;
-
-  return Card(
-    margin: const EdgeInsets.only(bottom: 12),
-    child: Padding(
-      padding: const EdgeInsets.all(12),
-      child: Row(
-        children: [
-          const CircleAvatar(
-            backgroundColor: Color(0xFFE5F6F2),
-            child: Icon(
-              Icons.medication_outlined,
-              color: teal,
-            ),
-          ),
-          const SizedBox(width: 12),
-
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  item['name'] as String? ?? 'Medicine',
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
-                ),
-                const SizedBox(height: 5),
-                Text('R${price.toStringAsFixed(2)}'),
-                Text(
-                  stock > 0
-                      ? '$stock available'
-                      : 'Out of stock',
-                  style: TextStyle(
-                    color: stock > 0 ? Colors.green : Colors.red,
-                  ),
-                ),
-                if (prescriptionRequired)
-                  const Text(
-                    'Prescription required • Pharmacist review',
-                    style: TextStyle(
-                      color: Colors.orange,
-                      fontSize: 12,
-                    ),
-                  ),
-              ],
-            ),
-          ),
-
-          const SizedBox(width: 8),
-
-          FilledButton(
-            onPressed: stock <= 0 || prescriptionRequired
-    ? null
-    : () async {
-        try {
-          await liveCart.add({
-            ...item,
-            'id': '${item['id']}',
-            'name': '${item['name']}',
-            'price': price,
-          });
-
-          if (!mounted) return;
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Added to your live cart'),
+          final stock = _stock(item['stock_quantity']);
+          final available = item['active'] != false && stock > 0;
+          final prescriptionRequired =
+              item['prescription_required'] == true ||
+              item['prescriptionRequired'] == true;
+          final demoRecord = item['demo_record'] == true;
+          final priceText = demoRecord
+              ? 'Price not verified'
+              : _zar(_money(item['price']));
+          return Card(
+            child: ListTile(
+              leading: const CircleAvatar(
+                backgroundColor: Color(0xFFE5F6F2),
+                child: Icon(Icons.medication_outlined, color: teal),
+              ),
+              title: Text(item['name'] as String? ?? 'Medicine'),
+              subtitle: Text(
+                '${available ? 'In stock ($stock)' : 'Unavailable'} • $priceText'
+                '${prescriptionRequired ? '\nPrescription required' : ''}',
+              ),
+              isThreeLine: prescriptionRequired,
+              trailing: FilledButton.icon(
+                onPressed: !available || prescriptionRequired
+                    ? null
+                    : () => _addToCart(item),
+                icon: const Icon(Icons.add_shopping_cart),
+                label: Text(prescriptionRequired ? 'Prescription' : 'Add to cart'),
+              ),
             ),
           );
-        } catch (error, stackTrace) {
-          debugPrint('[Cart] Add failed: $error');
-          debugPrintStack(stackTrace: stackTrace);
-
-          if (!mounted) return;
-
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Could not add item: $error'),
-            ),
-          );
-        }
-      },
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    ),
-  );
-}),
+        }),
       ],
     ),
   );
 }
+class _CartButton extends StatelessWidget {
+  const _CartButton({required this.onPressed});
+  final VoidCallback onPressed;
 
-class CartScreen extends StatefulWidget {
-  const CartScreen({super.key});
-
-  @override
-  State<CartScreen> createState() => _CartScreenState();
-}
-
-class _CartScreenState extends State<CartScreen> {
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('Your cart'),
-      ),
-      body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
-        stream: liveCart.watch(),
-        builder: (context, snapshot) {
-          final docs = snapshot.data?.docs ?? [];
-
-          if (snapshot.hasError) {
-            return const EmptyState(
-              icon: Icons.error_outline,
-              title: 'Cart unavailable',
-              message: 'Please sign in again and retry.',
-            );
-          }
-
-          if (!snapshot.hasData) {
-            return const Center(
-              child: CircularProgressIndicator(),
-            );
-          }
-
-          if (docs.isEmpty) {
-            return const EmptyState(
-              icon: Icons.shopping_bag_outlined,
-              title: 'Your cart is empty',
-              message: 'Add medicines from the shop to get started.',
-            );
-          }
-
-          final subtotal = docs.fold<double>(
-            0,
-            (totalAmount, d) {
-              final data = d.data();
-              final price =
-                  double.tryParse('${data['price'] ?? 0}') ?? 0;
-              final quantity = (data['quantity'] ?? 0) as num;
-
-              return totalAmount + (price * quantity.toDouble());
-            },
-          );
-
-          return ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              ...docs.map((d) {
-                final data = d.data();
-                final quantity = (data['quantity'] ?? 1) as num;
-                final price =
-                    double.tryParse('${data['price'] ?? 0}') ?? 0;
-
-                return Card(
-                  child: ListTile(
-                    title: Text('${data['name']}'),
-                    subtitle: Text(
-                      zar(price * quantity.toDouble()),
-                    ),
-                    leading: CircleAvatar(
-                      child: Text('$quantity'),
-                    ),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          onPressed: () => liveCart.change(
-                            d.id,
-                            quantity.toInt() - 1,
-                          ),
-                          icon: const Icon(Icons.remove_circle_outline),
-                        ),
-                        IconButton(
-                          onPressed: () => liveCart.change(
-                            d.id,
-                            quantity.toInt() + 1,
-                          ),
-                          icon: const Icon(Icons.add_circle_outline),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }),
-              const SizedBox(height: 12),
-              Card(
-                child: ListTile(
-                  title: const Text('Total'),
-                  trailing: Text(
-                    zar(subtotal + 35),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 12),
-              FilledButton.icon(
-                onPressed: () {
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => const CheckoutScreen(),
-                    ),
-                  );
-                },
-                icon: const Icon(Icons.lock_outline),
-                label: const Text('Continue to checkout'),
-              ),
-            ],
-          );
-        },
-      ),
+    final openCart = IconButton(
+      tooltip: 'Shopping cart',
+      onPressed: onPressed,
+      icon: const Icon(Icons.shopping_cart_outlined),
+    );
+    if (!_firebaseReady) return openCart;
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: liveCart.watch(),
+      builder: (context, snapshot) {
+        final count = snapshot.data?.docs.fold<int>(
+              0,
+              (itemCount, doc) => itemCount + _stock(doc.data()['quantity']),
+            ) ??
+            0;
+        return IconButton(
+          tooltip: 'Shopping cart',
+          onPressed: onPressed,
+          icon: Badge(
+            isLabelVisible: count > 0,
+            label: Text('$count'),
+            child: const Icon(Icons.shopping_cart_outlined),
+          ),
+        );
+      },
     );
   }
 }
+class CartScreen extends StatelessWidget {
+  const CartScreen({super.key});
 
-
-class CheckoutScreen extends StatefulWidget {
-  const CheckoutScreen({super.key});
-  @override State<CheckoutScreen> createState() => _CheckoutScreenState();
-}
-class _CheckoutScreenState extends State<CheckoutScreen> {
-  final address = TextEditingController();
-  bool placing = false;
-  @override void dispose() { address.dispose(); super.dispose(); }
-  Future<void> _place() async {
-    if (address.text.trim().isEmpty) { showMessage(context, 'Please enter a delivery address.'); return; }
-    setState(() => placing = true);
-    String reference;
+  Future<void> _change(BuildContext context, String id, int quantity) async {
     try {
-      final user = FirebaseAuth.instance.currentUser;
-      if (user == null) throw StateError('not signed in');
-      final cartDocs = (await liveCart.items.get()).docs;
-      final result = await const ApiService().placeOrder(
-        userId: user.uid, address: address.text.trim(),
-        items: cartDocs.map((doc) => {'medication_id': doc.id, 'quantity': doc.data()['quantity']}).toList());
-      reference = '${result['reference'] ?? result['id']}';
-      await liveCart.clear();
-    } catch (_) {
-      if (mounted) showMessage(context, 'Could not place the order. Please check your connection and try again.');
-      if (mounted) setState(() => placing = false);
-      return;
+      await liveCart.change(id, quantity);
+    } catch (error) {
+      if (context.mounted) showMessage(context, 'Could not update cart: $error');
     }
-    if (mounted) Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (_) => OrderConfirmationScreen(reference: reference)), (route) => route.isFirst);
   }
-  @override Widget build(BuildContext context) => Scaffold(
-    appBar: AppBar(title: const Text('Checkout')),
-    body: ListView(padding: const EdgeInsets.all(20), children: [
-      const PageTitle('Delivery details', 'Where should we bring your order?'),
-      TextField(controller: address, maxLines: 3, decoration: const InputDecoration(labelText: 'Delivery address', hintText: 'Street, suburb and city')),
-      const SizedBox(height: 16),
-      const ListTile(leading: Icon(Icons.payments_outlined, color: teal), title: Text('Payment'), subtitle: Text('Cash/card on delivery (demo)')),
-      const SizedBox(height: 12),
-      FilledButton(onPressed: placing ? null : _place, child: Text(placing ? 'Placing order...' : 'Place order')),
-    ]),
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Your cart')),
+    body: StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+      stream: liveCart.watch(),
+      builder: (context, snapshot) {
+        final docs = snapshot.data?.docs ?? [];
+        if (snapshot.hasError) {
+          return const EmptyState(
+            icon: Icons.error_outline,
+            title: 'Cart unavailable',
+            message: 'Please sign in again and retry.',
+          );
+        }
+        if (!snapshot.hasData) return const Center(child: CircularProgressIndicator());
+        if (docs.isEmpty) {
+          return const EmptyState(
+            icon: Icons.shopping_bag_outlined,
+            title: 'Your cart is empty',
+            message: 'Add medicines from the shop to get started.',
+          );
+        }
+
+        final lines = docs.map((doc) {
+          final data = doc.data();
+          return MapEntry(
+            doc.id,
+            CartLine(_cartMedicine(doc.id, data), quantity: _stock(data['quantity'])),
+          );
+        }).toList();
+        final subtotal = lines.fold<double>(
+          0,
+          (subtotal, entry) => subtotal + entry.value.total,
+        );
+        const fee = 35.0;
+        final hasPrescription = lines.any((entry) => entry.value.medicine.prescriptionOnly);
+
+        return ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            ...lines.map((entry) {
+              final line = entry.value;
+              return Card(
+                child: Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(line.medicine.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                            Text('${_zar(line.medicine.price)} each'),
+                            Text('Line total: ${_zar(line.total)}'),
+                            if (line.medicine.prescriptionOnly)
+                              const Text('Prescription required before checkout'),
+                          ],
+                        ),
+                      ),
+                      IconButton(
+                        tooltip: 'Decrease quantity',
+                        onPressed: () => _change(context, entry.key, line.quantity - 1),
+                        icon: const Icon(Icons.remove_circle_outline),
+                      ),
+                      Text('${line.quantity}'),
+                      IconButton(
+                        tooltip: 'Increase quantity',
+                        onPressed: line.quantity < line.medicine.stockQuantity
+                            ? () => _change(context, entry.key, line.quantity + 1)
+                            : null,
+                        icon: const Icon(Icons.add_circle_outline),
+                      ),
+                      IconButton(
+                        tooltip: 'Remove item',
+                        onPressed: () => _change(context, entry.key, 0),
+                        icon: const Icon(Icons.delete_outline),
+                      ),
+                    ],
+                  ),
+                ),
+              );
+            }),
+            const SizedBox(height: 12),
+            _CartTotalRow(label: 'Subtotal', value: _zar(subtotal)),
+            _CartTotalRow(label: 'Delivery fee', value: _zar(fee)),
+            _CartTotalRow(label: 'Total', value: _zar(subtotal + fee), strong: true),
+            if (hasPrescription)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Text('A pharmacist must review prescription items before they can be ordered.'),
+              ),
+            const SizedBox(height: 12),
+            FilledButton.icon(
+              onPressed: hasPrescription
+                  ? null
+                  : () => Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const CheckoutScreen()),
+                    ),
+              icon: const Icon(Icons.lock_outline),
+              label: const Text('Continue to checkout'),
+            ),
+          ],
+        );
+      },
+    ),
   );
 }
 
+class _CartTotalRow extends StatelessWidget {
+  const _CartTotalRow({required this.label, required this.value, this.strong = false});
+  final String label;
+  final String value;
+  final bool strong;
 
-class OrderConfirmationScreen extends StatelessWidget {
-  final String reference;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.symmetric(vertical: 6),
+    child: Row(
+      children: [
+        Expanded(child: Text(label, style: TextStyle(fontWeight: strong ? FontWeight.bold : null))),
+        Text(value, style: TextStyle(fontWeight: strong ? FontWeight.bold : null)),
+      ],
+    ),
+  );
+}
+class CheckoutScreen extends StatefulWidget {
+  const CheckoutScreen({super.key});
+  @override
+  State<CheckoutScreen> createState() => _CheckoutScreenState();
+}
 
-  const OrderConfirmationScreen({
-    super.key,
-    required this.reference,
-  });
+class _CheckoutScreenState extends State<CheckoutScreen> {
+  final address = TextEditingController();
+  final api = const ApiService();
+  Map<String, dynamic>? quote;
+  String? quotedAddress;
+  List<String>? quotedCartSignature;
+  bool quoting = false;
+  bool placing = false;
+
+  @override
+  void dispose() {
+    address.dispose();
+    super.dispose();
+  }
+
+  Future<List<Map<String, dynamic>>> _currentItems() async {
+    final cartDocs = (await liveCart.items.get()).docs;
+    if (cartDocs.isEmpty) throw StateError('Your cart is empty.');
+    if (cartDocs.any((doc) =>
+        doc.data()['prescription_required'] == true ||
+        doc.data()['prescriptionRequired'] == true)) {
+      throw StateError('Prescription items require pharmacist review.');
+    }
+    return cartDocs
+        .map((doc) => {
+              'medication_id': doc.id,
+              'quantity': _stock(doc.data()['quantity']),
+            })
+        .toList();
+  }
+
+  Future<void> _loadQuote() async {
+    final deliveryAddress = address.text.trim();
+    if (deliveryAddress.length < 8) {
+      showMessage(context, 'Please enter a complete delivery address.');
+      return;
+    }
+    if (quoting || placing) return;
+    setState(() => quoting = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw StateError('Sign in before checkout.');
+      final items = await _currentItems();
+      final result = await api.quoteOrder(
+        userId: user.uid,
+        address: deliveryAddress,
+        items: items,
+      );
+      if (!mounted) return;
+      setState(() {
+        quote = result;
+        quotedAddress = deliveryAddress;
+        quotedCartSignature = _cartSignature(items);
+      });
+    } catch (error) {
+      if (mounted) showMessage(context, 'Could not get current prices: $error');
+    } finally {
+      if (mounted) setState(() => quoting = false);
+    }
+  }
+
+  Future<void> _place() async {
+    final currentAddress = address.text.trim();
+    final currentQuote = quote;
+    if (currentQuote == null || quotedAddress != currentAddress) {
+      showMessage(context, 'Review the current prices and total before placing the order.');
+      return;
+    }
+    if (placing || quoting) return;
+    setState(() => placing = true);
+    try {
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) throw StateError('Sign in before placing an order.');
+      final items = await _currentItems();
+      if (!_sameSignature(_cartSignature(items), quotedCartSignature)) {
+        setState(() {
+          quote = null;
+          quotedCartSignature = null;
+        });
+        if (!mounted) return;
+        showMessage(context, 'Your cart changed. Review the current prices again.');
+        return;
+      }
+      final result = await api.placeOrder(
+        userId: user.uid,
+        address: currentAddress,
+        items: items,
+        expectedTotal: _money(currentQuote['total']),
+      );
+      final reference = '${result['reference'] ?? result['id'] ?? ''}'.trim();
+      if (reference.isEmpty) {
+        throw const FormatException('The server did not return an order reference.');
+      }
+      final total = _money(result['total']);
+      await liveCart.clear();
+      if (!mounted) return;
+      Navigator.pushAndRemoveUntil(
+        context,
+        MaterialPageRoute(
+          builder: (_) => OrderConfirmationScreen(reference: reference, total: total),
+        ),
+        (route) => route.isFirst,
+      );
+    } catch (error) {
+      if (mounted) {
+        final message = '$error';
+        if (message.contains('409') || message.contains('total changed')) {
+          setState(() => quote = null);
+          showMessage(context, 'The total changed. Review the updated prices before placing the order.');
+        } else {
+          showMessage(context, 'Could not place the order: $error');
+        }
+      }
+    } finally {
+      if (mounted) setState(() => placing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final pricedItems = quote?['items'] is List
+        ? (quote!['items'] as List)
+            .whereType<Map>()
+            .map((item) => Map<String, dynamic>.from(item))
+        : const <Map<String, dynamic>>[];
+    final quoteIsCurrent = quote != null && quotedAddress == address.text.trim();
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Order confirmed'),
-      ),
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(
-                Icons.check_circle,
-                color: teal,
-                size: 72,
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Your order is on its way',
-                style: TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-              const SizedBox(height: 8),
-              Text('Reference $reference'),
-              const SizedBox(height: 24),
-              FilledButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('Back to shop'),
-              ),
-            ],
+      appBar: AppBar(title: const Text('Checkout')),
+      body: ListView(
+        padding: const EdgeInsets.all(20),
+        children: [
+          const PageTitle('Delivery details', 'Where should we bring your order?'),
+          TextField(
+            controller: address,
+            maxLines: 3,
+            onChanged: (_) => setState(() => quote = null),
+            decoration: const InputDecoration(
+              labelText: 'Delivery address',
+              hintText: 'Street, suburb and city',
+            ),
           ),
-        ),
+          if (quoteIsCurrent) ...[
+            const SizedBox(height: 20),
+            const Text('Current order prices', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+            ...pricedItems.map((item) => ListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text('${item['medicine_name'] ?? 'Medicine'}'),
+              subtitle: Text('Quantity: ${item['quantity']} × ${_zar(_money(item['unit_price']))}'),
+              trailing: Text(_zar(_money(item['line_total']))),
+            )),
+            _CartTotalRow(label: 'Subtotal', value: _zar(_money(quote!['subtotal']))),
+            _CartTotalRow(label: 'Delivery fee', value: _zar(_money(quote!['delivery_fee']))),
+            _CartTotalRow(label: 'Total', value: _zar(_money(quote!['total'])), strong: true),
+          ],
+          const SizedBox(height: 16),
+          if (!quoteIsCurrent)
+            FilledButton(
+              onPressed: quoting || placing ? null : _loadQuote,
+              child: Text(quoting ? 'Checking prices...' : 'Review current prices and total'),
+            )
+          else
+            FilledButton(
+              onPressed: placing ? null : _place,
+              child: Text(placing ? 'Placing order...' : 'Place order • ${_zar(_money(quote!['total']))}'),
+            ),
+        ],
       ),
     );
   }
 }
 
+List<String> _cartSignature(List<Map<String, dynamic>> items) {
+  final signature = items
+      .map((item) => '${item['medication_id']}:${item['quantity']}')
+      .toList()
+    ..sort();
+  return signature;
+}
+
+bool _sameSignature(List<String> current, List<String>? quoted) {
+  if (quoted == null || current.length != quoted.length) return false;
+  for (var index = 0; index < current.length; index++) {
+    if (current[index] != quoted[index]) return false;
+  }
+  return true;
+}
+
+class OrderConfirmationScreen extends StatelessWidget {
+  const OrderConfirmationScreen({super.key, required this.reference, required this.total});
+  final String reference;
+  final double total;
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    appBar: AppBar(title: const Text('Order confirmed')),
+    body: Center(
+      child: Padding(
+        padding: const EdgeInsets.all(28),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.check_circle, color: teal, size: 72),
+            const SizedBox(height: 16),
+            const Text(
+              'Your order has been received',
+              textAlign: TextAlign.center,
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+            ),
+            const SizedBox(height: 12),
+            Text('Order reference: $reference'),
+            const SizedBox(height: 6),
+            Text('Order total: ${_zar(total)}'),
+            const SizedBox(height: 20),
+            FilledButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Back to shop'),
+            ),
+          ],
+        ),
+      ),
+    ),
+  );
+}
 class MedicalAidScreen extends StatelessWidget {
   const MedicalAidScreen({super.key});
   @override
@@ -1716,64 +1928,95 @@ class MedicalAidScreen extends StatelessWidget {
   );
 }
 
-class DoctorDirectoryScreen extends StatelessWidget {
+class DoctorDirectoryScreen extends StatefulWidget {
   const DoctorDirectoryScreen({super.key});
+
+  @override
+  State<DoctorDirectoryScreen> createState() => _DoctorDirectoryScreenState();
+}
+
+class _DoctorDirectoryScreenState extends State<DoctorDirectoryScreen> {
+  late final Future<List<Map<String, dynamic>>> doctors = const ApiService().getDoctors();
+  final search = TextEditingController();
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) => Scaffold(
     appBar: AppBar(title: const Text('Find a doctor')),
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const PageTitle(
-          'Available providers',
-          'Availability and bookings are not live',
+        const PageTitle('Available providers', 'Provider records from the ReliefRoute database.'),
+        const Text('Demo provider records are fictional and are not available for booking.'),
+        const SizedBox(height: 12),
+        TextField(
+          controller: search,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(labelText: 'Search name or specialty', prefixIcon: Icon(Icons.search)),
         ),
-        const TextField(
-          decoration: InputDecoration(
-            labelText: 'Search by specialty or location',
-            prefixIcon: Icon(Icons.search),
-          ),
-        ),
-        const SizedBox(height: 16),
-        ...[
-          'Dr. Naledi Mokoena • General practitioner',
-          'Dr. Liam Naidoo • Family medicine',
-          'Dr. Amara Jacobs • Paediatrics',
-        ].map(
-          (doctor) => Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                backgroundColor: Color(0xFFD9F2F1),
-                child: Icon(Icons.person_outline, color: teal),
-              ),
-              title: Text(doctor.split(' • ').first),
-              subtitle: Text(
-                '${doctor.split(' • ').last}\nProvider • Cape Town',
-              ),
-              isThreeLine: true,
-              trailing: FilledButton(
-                onPressed: () => openExternalLink(
-                  context,
-                  'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(doctor)}',
-                  'Opening provider location',
-                ),
-                child: const Text('Map'),
-              ),
-            ),
-          ),
+        const SizedBox(height: 12),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: doctors,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const EmptyState(icon: Icons.error_outline, title: 'Doctors unavailable', message: 'Check the backend connection and try again.');
+            }
+            final query = search.text.trim().toLowerCase();
+            final records = (snapshot.data ?? const <Map<String, dynamic>>[])
+                .where((doctor) => query.isEmpty || '${doctor['name']} ${doctor['specialty']} ${doctor['practice_name']} ${doctor['address']}'.toLowerCase().contains(query))
+                .toList();
+            if (records.isEmpty) {
+              return const EmptyState(icon: Icons.person_search_outlined, title: 'No doctors found', message: 'No provider records are available yet.');
+            }
+            return Column(
+              children: records.map((doctor) {
+                final name = '${doctor['name'] ?? 'Provider'}';
+                final specialty = '${doctor['specialty'] ?? 'Specialty not listed'}';
+                final practice = '${doctor['practice_name'] ?? ''}';
+                final address = '${doctor['address'] ?? 'Address not listed'}';
+                final phone = '${doctor['phone'] ?? 'Phone not provided'}';
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.person_outline, color: teal)),
+                    title: Text(name),
+                    subtitle: Text('$specialty\n$practice - $address\n$phone'),
+                    isThreeLine: true,
+                    trailing: const Chip(label: Text('Demo only')),
+                  ),
+                );
+              }).toList(),
+            );
+          },
         ),
       ],
     ),
   );
 }
 
-class PharmacyDirectoryScreen extends StatelessWidget {
+class PharmacyDirectoryScreen extends StatefulWidget {
   const PharmacyDirectoryScreen({super.key});
-  static const pharmacies = [
-    'ReliefRoute Central Pharmacy • Johannesburg',
-    'Rosebank Community Pharmacy • Johannesburg',
-    'Cape Town Care Pharmacy • Cape Town',
-  ];
+
+  @override
+  State<PharmacyDirectoryScreen> createState() => _PharmacyDirectoryScreenState();
+}
+
+class _PharmacyDirectoryScreenState extends State<PharmacyDirectoryScreen> {
+  late final Future<List<Map<String, dynamic>>> pharmacies = const ApiService().getPharmacies();
+  final search = TextEditingController();
+
+  @override
+  void dispose() {
+    search.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) => Scaffold(
@@ -1781,35 +2024,54 @@ class PharmacyDirectoryScreen extends StatelessWidget {
     body: ListView(
       padding: const EdgeInsets.all(20),
       children: [
-        const PageTitle(
-          'Nearby pharmacies',
-          'Choose a pharmacy to view it on a map.',
+        const PageTitle('Pharmacy directory', 'Pharmacy records from the ReliefRoute database.'),
+        const Text('Demo pharmacy records are fictional and are not real locations or available stock.'),
+        const SizedBox(height: 12),
+        TextField(
+          controller: search,
+          onChanged: (_) => setState(() {}),
+          decoration: const InputDecoration(labelText: 'Search name or location', prefixIcon: Icon(Icons.search)),
         ),
-        ...pharmacies.map(
-          (pharmacy) => Card(
-            child: ListTile(
-              leading: const CircleAvatar(
-                child: Icon(Icons.local_pharmacy_outlined, color: teal),
-              ),
-              title: Text(pharmacy.split(' • ').first),
-              subtitle: Text(pharmacy.split(' • ').last),
-              trailing: IconButton(
-                tooltip: 'Open map',
-                icon: const Icon(Icons.open_in_new),
-                onPressed: () => openExternalLink(
-                  context,
-                  'https://www.google.com/maps/search/?api=1&query=${Uri.encodeComponent(pharmacy)}',
-                  'Opening pharmacy location',
-                ),
-              ),
-            ),
-          ),
+        const SizedBox(height: 12),
+        FutureBuilder<List<Map<String, dynamic>>>(
+          future: pharmacies,
+          builder: (context, snapshot) {
+            if (snapshot.connectionState == ConnectionState.waiting) {
+              return const Center(child: CircularProgressIndicator());
+            }
+            if (snapshot.hasError) {
+              return const EmptyState(icon: Icons.error_outline, title: 'Pharmacies unavailable', message: 'Check the backend connection and try again.');
+            }
+            final query = search.text.trim().toLowerCase();
+            final records = (snapshot.data ?? const <Map<String, dynamic>>[])
+                .where((pharmacy) => query.isEmpty || '${pharmacy['name']} ${pharmacy['city']} ${pharmacy['address']}'.toLowerCase().contains(query))
+                .toList();
+            if (records.isEmpty) {
+              return const EmptyState(icon: Icons.local_pharmacy_outlined, title: 'No pharmacies found', message: 'No pharmacy records are available yet.');
+            }
+            return Column(
+              children: records.map((pharmacy) {
+                final name = '${pharmacy['name'] ?? 'Pharmacy'}';
+                final city = '${pharmacy['city'] ?? ''}';
+                final address = '${pharmacy['address'] ?? 'Address not listed'}';
+                final phone = '${pharmacy['phone'] ?? 'Phone not provided'}';
+                return Card(
+                  child: ListTile(
+                    leading: const CircleAvatar(child: Icon(Icons.local_pharmacy_outlined, color: teal)),
+                    title: Text(name),
+                    subtitle: Text('$address${city.isEmpty ? '' : ', $city'}\n$phone'),
+                    isThreeLine: true,
+                    trailing: const Chip(label: Text('Demo only')),
+                  ),
+                );
+              }).toList(),
+            );
+          },
         ),
       ],
     ),
   );
 }
-
 Future<void> openExternalLink(
   BuildContext context,
   String value,

@@ -84,6 +84,15 @@ public class FirestoreService {
         return true;
     }
 
+    public Map<String, Object> set(String name, String id, Map<String, Object> data) throws Exception {
+        Map<String, Object> payload = Objects.requireNonNull(data, "document data must not be null");
+        DocumentReference ref = collectionRef(name).document(required(id, "document id"));
+        ref.set(payload).get();
+        Map<String, Object> result = new LinkedHashMap<>(payload);
+        result.put("id", ref.getId());
+        return result;
+    }
+
     public boolean delete(String name, String id) throws Exception {
         DocumentReference ref = collectionRef(name).document(required(id, "document id"));
         if (!ref.get().get().exists()) {

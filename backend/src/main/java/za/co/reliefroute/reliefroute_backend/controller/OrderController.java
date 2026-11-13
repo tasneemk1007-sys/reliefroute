@@ -33,10 +33,13 @@ public class OrderController {
     @ResponseStatus(HttpStatus.CREATED)
     public Map<String, Object> place(@RequestBody Map<String, Object> body,
                                      HttpServletRequest request) throws Exception {
-        Map<String, Object> ownedBody = new java.util.LinkedHashMap<>(body);
-        Object uid = request.getAttribute("firebaseUid");
-        if (uid != null) ownedBody.put("user_id", uid);
-        return orders.place(ownedBody);
+        return orders.place(ownedBody(body, request));
+    }
+
+    @PostMapping("/quote")
+    public Map<String, Object> quote(@RequestBody Map<String, Object> body,
+                                    HttpServletRequest request) {
+        return orders.quote(ownedBody(body, request));
     }
 
     // GET /api/orders/{id}/tracking -> order + items + delivery + driver
@@ -64,8 +67,34 @@ public class OrderController {
 
     // PUT /api/orders/{id}/assign-driver   { "driver_id": "driver_001" }
     @PutMapping("/{id}/assign-driver")
-    public Map<String, Object> assignDriver(@PathVariable String id, @RequestBody Map<String, Object> body) throws Exception {
-        throw new org.springframework.web.server.ResponseStatusException(HttpStatus.NOT_IMPLEMENTED, "Driver assignment is not yet migrated to MySQL");
+    public Map<String, Object> assignDriver(@PathVariable String id,
+                                            @RequestBody Map<String, Object> body,
+                                            HttpServletRequest request) {
+        Object rawClaims = request.getAttribute("firebaseClaims");
+        if (!(rawClaims instanceof Map<?, ?> claims)
+                || !"admin".equals(String.valueOf(claims.get("role")))) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.FORBIDDEN, "Administrator role required");
+        }
+        String driverUid = String.valueOf(body.getOrDefault("driver_id", "")).trim();
+        if (driverUid.isEmpty()) {
+            throw new org.springframework.web.server.ResponseStatusException(
+                    HttpStatus.BAD_REQUEST, "driver_id is required");
+        }
+        return orders.assignDriver(id, driverUid);
+    }
+
+    private Map<String, Object> ownedBody(Map<String, Object> body,
+                                          HttpServletRequest request) {
+        String uid = authenticatedUid(request);
+        Map<String, Object> ownedBody = new java.util.LinkedHashMap<>(body);
+        ownedBody.put("user_id", uid);
+        Object rawClaims = request.getAttribute("firebaseClaims");
+        if (rawClaims instanceof Map<?, ?> claims) {
+            ownedBody.put("user_email", claims.get("email") == null ? "" : claims.get("email"));
+            ownedBody.put("user_name", claims.get("name") == null ? "" : claims.get("name"));
+        }
+        return ownedBody;
     }
 
     private String authenticatedUid(HttpServletRequest request) {
