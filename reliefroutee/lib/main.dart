@@ -31,6 +31,14 @@ int _stock(Object? value) => value is num
     ? value.toInt()
     : int.tryParse('$value') ?? 0;
 
+bool _isTrue(Object? value) {
+  if (value == true) return true;
+  if (value is num) return value != 0;
+
+  final text = '$value'.trim().toLowerCase();
+  return text == 'true' || text == '1';
+}
+
 Medicine _cartMedicine(String id, Map<String, dynamic> data) => Medicine(
   id: id,
   name: '${data['name'] ?? 'Medicine'}',
@@ -39,7 +47,7 @@ Medicine _cartMedicine(String id, Map<String, dynamic> data) => Medicine(
   price: _money(data['price']),
   prescriptionOnly: data['prescription_required'] == true ||
       data['prescriptionRequired'] == true,
-  available: data['active'] != false && _stock(data['stock_quantity']) > 0,
+  available: _isTrue(data['active']) && _stock(data['stock_quantity']) > 0,
   stockQuantity: _stock(data['stock_quantity']),
 );
 
@@ -1442,7 +1450,7 @@ class _CatalogueScreenState extends State<CatalogueScreen> {
           ),
         ...medicines.map((item) {
           final stock = _stock(item['stock_quantity']);
-          final available = item['active'] != false && stock > 0;
+          final available = _isTrue(item['active']) && stock > 0;
           final prescriptionRequired =
               item['prescription_required'] == true ||
               item['prescriptionRequired'] == true;

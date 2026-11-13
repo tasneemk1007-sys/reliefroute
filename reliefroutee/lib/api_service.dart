@@ -38,39 +38,32 @@ class ApiService {
 
   Future<List<Map<String, dynamic>>> getMedicines({String query = ''}) async {
     final uri = Uri.parse('$baseUrl/medications').replace(
-      queryParameters: query.trim().isEmpty ? null : {'q': query.trim()},
+      queryParameters: query
+          .trim()
+          .isEmpty ? null : {'q': query.trim()},
     );
     final response = await http
         .get(uri, headers: await _headers())
         .timeout(const Duration(seconds: 5));
 
-        debugPrint('[Medicines] URL: $uri');
-        debugPrint('[Medicines] Status: ${response.statusCode}');
-        debugPrint('[Medicines] Response: ${response.body}');
+    debugPrint('[Medicines] URL: $uri');
+    debugPrint('[Medicines] Status: ${response.statusCode}');
 
-    if (response.statusCode != 200) {
-  throw Exception(
-    'Medicine request failed (${response.statusCode}): ${response.body}', );
-    }
     final data = jsonDecode(response.body) as List<dynamic>;
+
+    for (final item in data) {
+      debugPrint(
+        '[Medicine Check] '
+            'Name: ${item['name']}, '
+            'Active: ${item['active']}, '
+            'Stock: ${item['stock_quantity']}, '
+            'Prescription: ${item['prescription_required']}, '
+            'Demo: ${item['demo_record']}',
+      );
+    }
+
     return data.cast<Map<String, dynamic>>();
   }
-
-  Future<List<Map<String, dynamic>>> getDoctors() async => _decodeList(
-    await http.get(
-      Uri.parse('$baseUrl/directory/doctors'),
-      headers: await _headers(),
-    ),
-    'Could not load doctors',
-  );
-
-  Future<List<Map<String, dynamic>>> getPharmacies() async => _decodeList(
-    await http.get(
-      Uri.parse('$baseUrl/directory/pharmacies'),
-      headers: await _headers(),
-    ),
-    'Could not load pharmacies',
-  );
 
   Future<Map<String, dynamic>> health() async {
     final response = await http.get(
@@ -101,6 +94,24 @@ class ApiService {
       body: jsonEncode({'name': name, 'email': email, 'password': password}),
     );
     return _decodeObject(response, 'Registration failed');
+  }
+
+  Future<List<Map<String, dynamic>>> getDoctors() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/directory/doctors'),
+      headers: await _headers(),
+    );
+
+    return _decodeList(response, 'Could not load doctors');
+  }
+
+  Future<List<Map<String, dynamic>>> getPharmacies() async {
+    final response = await http.get(
+      Uri.parse('$baseUrl/directory/pharmacies'),
+      headers: await _headers(),
+    );
+
+    return _decodeList(response, 'Could not load pharmacies');
   }
 
   Future<List<dynamic>> getReminders() => _getList('/refill_reminders');
@@ -212,7 +223,6 @@ class ApiService {
     );
     return _decodeList(response, 'Could not load orders');
   }
-
   Future<Map<String, dynamic>> quoteOrder({
     required String userId,
     required String address,
@@ -227,7 +237,8 @@ class ApiService {
         'items': items,
       }),
     );
-    return _decodeObject(response, 'Could not calculate the order total');
+
+    return _decodeObject(response, 'Could not calculate order total');
   }
 
   Future<Map<String, dynamic>> placeOrder({
@@ -246,11 +257,12 @@ class ApiService {
         'address': address,
         'pharmacy_id': pharmacyId,
         'prescription_id': prescriptionId,
-        'expected_total': expectedTotal,
         'items': items,
+        'expected_total': expectedTotal,
       }),
     );
-    return _decodeObject(response, 'Could not place order');
+
+    return _decodeObject(response, 'Could not place the order');
   }
 
   Future<Map<String, dynamic>> getOrderTracking(String orderId) async {
